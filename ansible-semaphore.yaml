@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ansible-semaphore
+  namespace: argocd
+spec:
+  project: local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: semaphore
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  sources:
+    - repoURL: "https://cloudhippie.github.io/charts"
+      chart: ansible-semaphore
+      targetRevision: "14.0.0"
+      helm:
+        releaseName: ansible-semaphore
+        valueFiles:
+          - $values/helm-ansible-semaphore/semaphore.values.yaml
+    - repoURL: https://github.com/nazmang/k8s.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/nazmang/k8s.git
+      targetRevision: main
+      path: helm-ansible-semaphore/semaphore
+      kustomize: {}
+  info:
+    - name: artifacthub
+      value: "https://artifacthub.io/packages/helm/cloudhippie/ansible-semaphore"

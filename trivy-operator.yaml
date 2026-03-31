@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trivy-operator
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: "https://aquasecurity.github.io/helm-charts/"
+    chart: trivy-operator
+    targetRevision: "0.30.0"
+    helm:
+      values: |
+        trivy:
+          ignoreUnfixed: true
+        # Пример: исключить определённые namespace-ы из сканирования
+        excludeNamespaces: "kube-system,trivy-system"
+        # Пример: включить и настроить ServiceMonitor, если используете Prometheus
+        serviceMonitor:
+          enabled: true
+          # Если требуется namespace селектор или labels, можно задать здесь
+        # Пример: изменить настройки разрешений, tolerations и securityContext
+        scanJob:
+          tolerations:
+            - key: "node-role.kubernetes.io/control-plane"
+              operator: "Exists"
+              effect: "NoSchedule"
+        trivyOperator:
+          builtInTrivyServer: true
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: trivy-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

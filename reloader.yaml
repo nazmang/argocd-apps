@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reloader
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: reloader
+spec:
+  project: local
+  sources:
+    - repoURL: "https://stakater.github.io/stakater-charts"
+      chart: reloader
+      targetRevision: "2.2.3"
+      helm:
+        valueFiles:
+          - $values/helm-reloader/reloader.values.yaml
+    - repoURL: https://github.com/nazmang/k8s.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace:  reloader
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trivy-operator-dashboard
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/raoulx24/trivy-operator-dashboard.git
+    targetRevision: master
+    path: deploy/helm/trivy-operator-dashboard
+    helm:
+      values: |
+        replicaCount: 1
+        service:
+          type: ClusterIP
+        ingress:
+          enabled: true
+          className: nginx
+          hosts:
+            - host: trivy-dashboard.comintern.local
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: trivy-dashboard-tls
+              hosts:
+                - trivy-dashboard.comintern.local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: trivy-dashboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

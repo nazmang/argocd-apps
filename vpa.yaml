@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vertical-pod-autoscaler
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://cowboysysop.github.io/charts/"
+    chart: vertical-pod-autoscaler
+    targetRevision: "11.0.1"
+    helm:
+      # inline-values example
+      values: |
+        admissionController:
+          enabled: true
+          replicaCount: 1
+        recommender:
+          enabled: true
+          replicaCount: 1
+        updater:
+          enabled: true
+          replicaCount: 1
+        # Disable creation of ServiceMonitor, if no Prometheus Operator
+        admissionController:
+          metrics:
+            serviceMonitor:
+              enabled: false
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
