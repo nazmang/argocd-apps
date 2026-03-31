@@ -1,0 +1,154 @@
+ui:
+  enabled: true # Enables the Vault web UI for interacting with Vault from a browser.
+
+server:
+  replicas: 3 # Number of Vault server pods (recommended 3+ for HA with Raft storage backend).
+
+  service:
+    type: ClusterIP # Service type (ClusterIP means only accessible inside the cluster).
+    port: 8200 # Vault API/UI port.
+
+  tls:
+    enabled: true # Enable TLS for Vault server.
+    secretName: vault-tls # Name of the Kubernetes TLS Secret that contains tls.crt and tls.key.
+
+  dataStorage:
+    enabled: true # Enables persistent storage for Vault data (required for HA and production use).
+    storageClass: "nfs-client" # Storage class for PersistentVolumeClaim.
+    accessMode: ReadWriteOnce # PVC access mode (ReadWriteOnce is enough for Raft).
+    size: 100Gi # Storage size for Vault data.
+
+  config: |
+    # This is the Vault server configuration in HCL format.
+    ui = true
+
+    listener "tcp" {
+      address = "0.0.0.0:8200" # Bind to all network interfaces on port 8200.
+      tls_cert_file = "/vault/tls/tls.crt" # Path to TLS certificate inside pod.
+      tls_key_file  = "/vault/tls/tls.key" # Path to TLS private key inside pod.
+    }
+
+    storage "raft" {
+      path = "/vault/data" # Path for Raft storage (persistent data).
+    }
+
+    # External API address (used by clients to connect to Vault).
+    api_addr = "https://vault.comintern.local"
+
+    # Cluster address (used by Vault servers to communicate with each other).
+    cluster_addr = "https://vault:8201"
+
+  extraVolumes:
+    # Mount additional Kubernetes Secrets or ConfigMaps.
+    - type: secret # Type of extra volume (secret).
+      name: vault-tls # Secret name to mount (contains TLS files).
+
+  extraVolumeMounts:
+    # Defines how extra volumes are mounted inside the container.
+    - name: userconfig-vault-tls # Must match the generated volume name (userconfig-<name>).
+      mountPath: /vault/tls # Mount TLS secret into /vault/tls.
+      readOnly: true # Mark as read-only to prevent accidental modifications.
+
+  ingress:
+    enabled: true # Enable ingress to access Vault from outside the cluster.
+    annotations:
+      kubernetes.io/ingress.class: nginx # Use NGINX ingress controller.
+      # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # Tell NGINX to use HTTPS when connecting to Vault.
+    hosts:
+      - host: vault.comintern.local # External hostname for Vault.
+        # paths:
+        #   - path: / # Route all traffic to Vault.
+        #     pathType: Prefix
+    tls:
+      - hosts:
+          - vault.comintern.local # Host for TLS termination.
+        secretName: vault-ingress-tls # Secret containing TLS certificate for ingress.
+
+  resources:
+    # Resource requests and limits for Vault server pods.
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+  readinessProbe:
+    # Readiness probe to ensure pod is healthy before receiving traffic.
+    httpGet:
+      path: /v1/sys/health?standbyok=true
+      port: 8200
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+  livenessProbe:
+    # Liveness probe to restart pod if Vault becomes unresponsive.
+    httpGet:
+      path: /v1/sys/health
+      port: 8200
+    initialDelaySeconds: 15
+    periodSeconds: 20
+    timeoutSeconds: 5
+
+  podDisruptionBudget:
+    enabled: true # Ensures a minimum number of Vault pods are always running.
+    minAvailable: 2 # At least 2 pods must stay available during voluntary disruptions.
+
+  affinity: | # Ensures pods are placed on different nodes.
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ template "vault.name" . }}
+              app.kubernetes.io/instance: "{{ .Release.Name }}"
+              component: server
+          topologyKey: kubernetes.io/hostname 
+
+serviceAccount:
+  create: true # Create a dedicated service account for Vault.
+  name: vault # Name of the service account.
+
+auditStorage:
+  enabled: true # Enables Vault audit logs (must be configured in Vault after deployment).
+  storageClass: "nfs-client" # Storage class for audit log PVC.
+  accessMode: ReadWriteOnce # PVC access mode for audit logs.
+
+networkPolicy:
+  enabled: false # Enable Kubernetes NetworkPolicies for Vault (limits which pods can talk to Vault).
+  egress: []
+    # egress:
+    # - to:
+    #   - ipBlock:
+    #       cidr: 10.0.0.0/24
+    #   ports:
+    #   - protocol: TCP
+    #     port: 443
+  ingress:
+    - from:
+      - namespaceSelector: {}
+      ports:
+      - port: 8200
+        protocol: TCP
+      - port: 8201
+        protocol: TCP
+
+# Auto-unseal: AWS exampl- credentials passing through secret / env
+# For helm chart nedd to define necessary env vars in server.env (ex. below)
+# kubectl -n vault create secret generic vault-aws-creds \
+#   --from-literal=aws_access_key_id=AKIA... \
+#   --from-literal=aws_secret_access_key=...
+#
+# serverExtraEnv:
+#   - name: AWS_REGION
+#     value: "us-east-1"
+#   - name: AWS_ACCESS_KEY_ID
+#     valueFrom:
+#       secretKeyRef:
+#         name: vault-aws-creds
+#         key: aws_access_key_id
+#   - name: AWS_SECRET_ACCESS_KEY
+#     valueFrom:
+#       secretKeyRef:
+#         name: vault-aws-creds
+#         key: aws_secret_access_key
