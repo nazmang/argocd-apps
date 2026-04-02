@@ -26,7 +26,7 @@ spec:
         valueFiles:
           - $values/helm-minio/minio-tenant.values.yaml
 
-    - repoURL: https://github.com/nazmang/k8s.git
+    - repoURL: https://github.com/nazmang/argocd-apps.git
       targetRevision: main
       ref: values
 
@@ -91,7 +91,7 @@ spec:
 #           valueFiles:
 #             - $values/helm-minio/{{valuesFile}}
 #       sources:
-#         - repoURL: https://github.com/nazmang/k8s.git
+#         - repoURL: https://github.com/nazmang/argocd-apps.git
 #           targetRevision: main
 #           ref: values
 #       destination:
