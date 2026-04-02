@@ -81,17 +81,17 @@ ingress:
     className: nginx
     # -- Host definition for ingress
     hosts:
-        - host: semaphore.comintern.local
+        - host: semaphore.srvx.cc
           paths:
             - path: /
               pathType: Prefix
     # -- Optional TLS configuration for ingress
-    tls:
-        - hosts:
-            # Host for TLS termination.
-            - semaphore.comintern.local
-          # Secret containing TLS certificate for ingress.
-          secretName: semaphore-ingress-tls
+    tls: []
+        # - hosts:
+        #     # Host for TLS termination.
+        #     - semaphore.comintern.local
+        #   # Secret containing TLS certificate for ingress.
+        #   secretName: semaphore-ingress-tls
     # -- Additional annotations for the ingress
     annotations: {}
     # -- Additional labels for the ingress
