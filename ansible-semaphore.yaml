@@ -22,10 +22,10 @@ spec:
         releaseName: ansible-semaphore
         valueFiles:
           - $values/helm-ansible-semaphore/semaphore.values.yaml
-    - repoURL: https://github.com/nazmang/k8s.git
+    - repoURL: https://github.com/nazmang/argocd-apps.git
       targetRevision: main
       ref: values
-    - repoURL: https://github.com/nazmang/k8s.git
+    - repoURL: https://github.com/nazmang/argocd-apps.git
       targetRevision: main
       path: helm-ansible-semaphore/semaphore
       kustomize: {}
