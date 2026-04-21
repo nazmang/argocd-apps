@@ -49,7 +49,7 @@ server:
     - type: secret # Type of extra volume (secret).
       name: vault-tls # Secret name to mount (contains TLS files).
 
-  extraVolumeMounts:
+  volumeMounts:
     # Defines how extra volumes are mounted inside the container.
     - name: userconfig-vault-tls # Must match the generated volume name (userconfig-<name>).
       mountPath: /vault/tls # Mount TLS secret into /vault/tls.
