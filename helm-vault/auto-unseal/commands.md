@@ -4,7 +4,7 @@
 
     ```shell
     POD=$(kubectl -n vault get pods -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].metadata.name}')
-    kubectl exec -it -n vault $POD -- /bin/sh /
+    kubectl exec -it -n vault $POD -- /bin/sh 
     vault operator init -key-shares=5 -key-threshold=3 -format=json 
 
     ```
