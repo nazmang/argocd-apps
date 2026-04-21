@@ -3,7 +3,7 @@ ui:
 
 server:
   ha:
-    enabled: true # Enables High Availability mode for Vault (requires Raft storage backend).
+    enabled: false # Enables High Availability mode for Vault (requires Raft storage backend).
     replicas: 3 # Number of Vault server pods (recommended 3+ for HA with Raft storage backend).
     raft:
       # Enables Raft integrated storage
