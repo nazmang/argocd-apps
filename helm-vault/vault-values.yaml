@@ -59,7 +59,7 @@ server:
     enabled: true # Enable ingress to access Vault from outside the cluster.
     annotations:
       kubernetes.io/ingress.class: nginx # Use NGINX ingress controller.
-      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # Tell NGINX to use HTTPS when connecting to Vault.
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Tell NGINX to use HTTPS when connecting to Vault.
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
       nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
       external-dns.alpha.kubernetes.io/hostname: vault.srvx.cc
