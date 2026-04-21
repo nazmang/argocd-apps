@@ -17,10 +17,7 @@ spec:
       ref: values
     - repoURL: https://github.com/nazmang/argocd-apps.git
       targetRevision: main
-      path: helm-vault
-      directory:
-        recurse: false
-        include: vault-config.yaml
+      path: helm-vault/vault-config
     - repoURL: https://github.com/nazmang/argocd-apps.git
       targetRevision: main
       path: helm-vault/auto-unseal

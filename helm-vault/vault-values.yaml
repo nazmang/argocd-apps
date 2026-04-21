@@ -33,7 +33,7 @@ server:
     }
 
     # External API address (used by clients to connect to Vault).
-    api_addr = "https://vault.comintern.local"
+    api_addr = "https://vault.srvx.cc"
 
     # Cluster address (used by Vault servers to communicate with each other).
     cluster_addr = "https://vault:8201"
@@ -53,16 +53,16 @@ server:
     enabled: true # Enable ingress to access Vault from outside the cluster.
     annotations:
       kubernetes.io/ingress.class: nginx # Use NGINX ingress controller.
-      # nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # Tell NGINX to use HTTPS when connecting to Vault.
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS" # Tell NGINX to use HTTPS when connecting to Vault.
     hosts:
-      - host: vault.comintern.local # External hostname for Vault.
+      - host: vault.srvx.cc # External hostname for Vault.
         # paths:
         #   - path: / # Route all traffic to Vault.
         #     pathType: Prefix
-    tls:
-      - hosts:
-          - vault.comintern.local # Host for TLS termination.
-        secretName: vault-ingress-tls # Secret containing TLS certificate for ingress.
+    # tls:
+    #   - hosts:
+    #       - vault.srvx.cc # Host for TLS termination.
+    #     secretName: vault-ingress-tls # Secret containing TLS certificate for ingress.
 
   resources:
     # Resource requests and limits for Vault server pods.

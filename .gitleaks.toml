@@ -1,0 +1,10 @@
+[allowlist]
+description = "Allowlist for SOPS-encrypted files"
+
+[[allowlist.findings]]
+id = "cloudflared-sops-secret"
+description = "SOPS-encrypted Kubernetes Secret — not a real credential"
+fingerprints = [
+  "helm-cloudflared/overlays/cloud/secret.yaml:kubernetes-secret-yaml:2",
+  "helm-cloudflared/overlays/cloud/secret.yaml:generic-api-key:7",
+]
