@@ -22,7 +22,7 @@ server:
     enabled: true # Enables persistent storage for Vault data (required for HA and production use).
     storageClass: "nfs-client" # Storage class for PersistentVolumeClaim.
     accessMode: ReadWriteMany # PVC access mode (ReadWriteOnce is enough for Raft).
-    size: 100Gi # Storage size for Vault data.
+    size: 10Gi # Storage size for Vault data.
 
   config: |
     # This is the Vault server configuration in HCL format.
