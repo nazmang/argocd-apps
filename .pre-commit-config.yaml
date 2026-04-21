@@ -1,0 +1,10 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2 # Use latest from: https://github.com/gitleaks/gitleaks/releases
+    hooks:
+      - id: gitleaks
+        name: Detect hardcoded secrets
+        description: Runs gitleaks to detect secrets in your code.
+        entry: gitleaks protect --staged -v --config .gitleaks.toml
+        language: golang
+        # stages: [commit] # Default on commit stage

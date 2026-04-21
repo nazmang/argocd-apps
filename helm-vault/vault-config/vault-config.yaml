@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: vault-tls
   issuerRef:
-    name: selfsigned-issuer
+    name: letsencrypt-dns
     kind: ClusterIssuer
   dnsNames:
-    - vault.comintern.local
+    - vault.srvx.cc
