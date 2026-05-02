@@ -10,11 +10,11 @@ image:
 
 port: 8000
 
-env: {}
+env: 
   # APPRISE_CONFIG_DIR: /config
   # APPRISE_ATTACH_DIR: /attach
   # APPRISE_PLUGIN_PATHS: /plugin
-  # TZ: Etc/UTC
+  TZ: Europe/Athens
 
 persistence:
   enabled: true
@@ -54,10 +54,10 @@ httproute:
 resources:
   limits:
     cpu: 500m
-    memory: 256Mi
+    memory: 512Mi
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 256Mi
 
 securityContext:
   fsGroup: 65534
