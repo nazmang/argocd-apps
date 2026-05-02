@@ -1,0 +1,6 @@
+apiVersion: v2
+name: apprise
+description: Helm chart for Apprise API with Apprise CLI sidecar
+type: application
+version: 0.1.0
+appVersion: "latest"

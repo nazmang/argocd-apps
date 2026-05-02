@@ -1,0 +1,75 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: caronc/apprise
+  tag: latest
+  pullPolicy: IfNotPresent
+
+port: 8000
+
+env: {}
+  # APPRISE_CONFIG_DIR: /config
+  # APPRISE_ATTACH_DIR: /attach
+  # APPRISE_PLUGIN_PATHS: /plugin
+  # TZ: Etc/UTC
+
+persistence:
+  enabled: true
+  storageClass: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: 
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    external-dns.alpha.kubernetes.io/hostname: apprise.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+  hosts:
+    - host: apprise.srvx.cc
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+httproute:
+  enabled: false
+  parentRefs:
+    - name: gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - apprise.srvx.cc
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+securityContext:
+  fsGroup: 65534
+
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
