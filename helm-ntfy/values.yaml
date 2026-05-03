@@ -57,9 +57,14 @@ config:
   # Each entry: "username:bcrypt-hash:role"  (role: admin or user)
   authUsers:
     - "ntfyadmin:$2b$10$nU8zcFJaXQNLbonoUpbvdeamWOSVCLCIwHFgHpOtBRK3SNYqn6L9W:admin"
-    - "ntfyuser:$2b$10$uJQ0FTpkOOnCADtDe53pcOr3WFZobe74.EfYF5VL8873eq/gHZc2a:user"
-  # Each entry: "username:topic:permission"  (permission: read-write, read-only, etc.)
-  # authAccess: []
+    - "ntfyuser:$2b$10$ZTLooEzGr.w9xpviHtKjkuo3uFjtQ70gLP2n2TG0WZ5OaoRHjQOHm:user"
+    - "alertmgr:$2b$10$rRLRs1.Q6leDpFEUqJ5yLeJAyr6IsUQXvzGpkUbBOsMN6QxLY1pFe:user"
+  # Each entry: "username:topic:permission"  (permission: read-write, read-only, write-only, deny-all; wildcards supported in topic)
+  authAccess:
+    - "ntfyuser:cloud-k8s:read-only"
+    - "ntfyuser:alters*:read-only"
+    - "alertmgr:cloud-k8s:read-write"
+    - "alertmgr:alters*:read-write"
   # Each entry: "username:token[:label]"
   # authTokens: []
   # webPushFile: "/var/lib/ntfy/webpush.db"
