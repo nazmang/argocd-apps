@@ -1,0 +1,205 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: binwiederhier/ntfy
+  tag: v2
+  pullPolicy: IfNotPresent
+
+port: 80
+
+# ntfy server.yml configuration — all keys map 1:1 to ntfy config docs
+# https://docs.ntfy.sh/config/#config-options
+config:
+  # ---------------------------------------------------------------------------
+  # Server
+  # ---------------------------------------------------------------------------
+  baseUrl: "https://ntfy.srvx.cc"
+  behindProxy: true
+  listenHttp: ":80"
+  # listenHttps: ""          # e.g. ":443" — also set keyFile/certFile
+  # keyFile: ""              # TLS private key path
+  # certFile: ""             # TLS certificate path
+  # listenUnix: ""           # Unix socket path
+  # proxyForwardedHeader: "X-Forwarded-For"
+  # proxyTrustedHosts: ""    # comma-separated IPs/CIDRs
+
+  # ---------------------------------------------------------------------------
+  # Logging
+  # ---------------------------------------------------------------------------
+  logLevel: "info"           # trace, debug, info, warn, error
+  # logFormat: "text"        # text, json
+
+  # ---------------------------------------------------------------------------
+  # Database (SQLite by default; set databaseUrl for PostgreSQL)
+  # ---------------------------------------------------------------------------
+  # databaseUrl: ""          # postgres://user:pass@host/db
+  # databaseReplicaUrls: []  # read replica PostgreSQL URLs
+
+  # ---------------------------------------------------------------------------
+  # Message cache
+  # ---------------------------------------------------------------------------
+  cacheFile: "/var/lib/ntfy/cache.db"
+  cacheDuration: "12h"
+  # cacheBatchSize: 0        # messages batched before write (0 = disabled)
+  # cacheBatchTimeout: ""    # max wait before flushing batch, e.g. "0ms"
+  # cacheStartupQueries: ""  # raw SQL executed on cache open (e.g. PRAGMA settings)
+
+  # ---------------------------------------------------------------------------
+  # Access control
+  # ---------------------------------------------------------------------------
+  authFile: "/var/lib/ntfy/auth.db"
+  authDefaultAccess: "deny-all"   # read-write, read-only, write-only, deny-all
+  enableLogin: true
+  requireLogin: true
+  # Each entry: "username:bcrypt-hash:role"  (role: admin or user)
+  authUsers:
+    - "ntfyadmin:$2b$10$nU8zcFJaXQNLbonoUpbvdeamWOSVCLCIwHFgHpOtBRK3SNYqn6L9W:admin"
+    - "ntfyuser:$2b$10$uJQ0FTpkOOnCADtDe53pcOr3WFZobe74.EfYF5VL8873eq/gHZc2a:user"
+  # Each entry: "username:topic:permission"  (permission: read-write, read-only, etc.)
+  # authAccess: []
+  # Each entry: "username:token[:label]"
+  # authTokens: []
+  # webPushFile: "/var/lib/ntfy/webpush.db"
+
+  # ---------------------------------------------------------------------------
+  # Attachments (mounted as emptyDir — see volumes below)
+  # ---------------------------------------------------------------------------
+  attachmentCacheDir: "/var/cache/ntfy/attachments"
+  attachmentTotalSizeLimit: "5G"
+  attachmentFileSizeLimit: "15m"
+  attachmentExpiryDuration: "3h"
+
+  # ---------------------------------------------------------------------------
+  # Upstream relay (Firebase/APNs via ntfy.sh)
+  # ---------------------------------------------------------------------------
+  upstreamBaseUrl: "https://ntfy.sh"
+  # upstreamAccessToken: ""  # access token for upstream server
+
+  # ---------------------------------------------------------------------------
+  # Email — outgoing (SMTP sender)
+  # ---------------------------------------------------------------------------
+  # smtpSenderAddr: ""       # hostname:port, e.g. "smtp.example.com:587"
+  # smtpSenderUser: ""
+  # smtpSenderPass: ""
+  # smtpSenderFrom: ""       # e.g. "ntfy@example.com"
+  # smtpSenderVerify: false  # require address verification before sending
+
+  # ---------------------------------------------------------------------------
+  # Email — incoming (SMTP server, publish via email)
+  # ---------------------------------------------------------------------------
+  # smtpServerListen: ""     # e.g. ":25"
+  # smtpServerDomain: ""     # must match MX record
+  # smtpServerAddrPrefix: "" # optional prefix, e.g. "ntfy-"
+
+  # ---------------------------------------------------------------------------
+  # Firebase Cloud Messaging (Android push)
+  # ---------------------------------------------------------------------------
+  # firebaseKeyFile: ""      # path to Firebase service account JSON
+
+  # ---------------------------------------------------------------------------
+  # Web Push (VAPID)
+  # ---------------------------------------------------------------------------
+  # webPushPublicKey: ""
+  # webPushPrivateKey: ""
+  # webPushEmailAddress: ""  # admin email for push provider
+  # webPushExpiryWarningDuration: "55d"
+  # webPushExpiryDuration: "60d"
+
+  # ---------------------------------------------------------------------------
+  # Rate limiting — per visitor
+  # ---------------------------------------------------------------------------
+  # visitorRequestLimitBurst: 60
+  # visitorRequestLimitReplenish: "5s"
+  # visitorRequestLimitExemptHosts: ""  # comma-separated IPs/CIDRs
+  # visitorSubscriptionLimit: 30
+  # visitorMessageDailyLimit: 0         # 0 = unlimited
+  # visitorEmailLimitBurst: 16
+  # visitorEmailLimitReplenish: "1h"
+  # visitorAttachmentTotalSizeLimit: "100m"
+  # visitorAttachmentDailyBandwidthLimit: "500m"
+  # visitorPrefixBitsIpv4: 32
+  # visitorPrefixBitsIpv6: 64
+  # visitorSubscriberRateLimiting: false
+
+  # ---------------------------------------------------------------------------
+  # Global limits
+  # ---------------------------------------------------------------------------
+  # globalTopicLimit: 15000
+  # messageSizeLimit: ""     # e.g. "4k"
+  # messageDelayLimit: ""    # e.g. "3d"
+
+  # ---------------------------------------------------------------------------
+  # Payments / tiers (Stripe)
+  # ---------------------------------------------------------------------------
+  # stripeSecretKey: ""
+  # stripeWebhookKey: ""
+  # billingContact: ""       # email or URL shown for billing inquiries
+
+  # ---------------------------------------------------------------------------
+  # Phone calls (Twilio)
+  # ---------------------------------------------------------------------------
+  # twilioAccount: ""        # Twilio Account SID
+  # twilioAuthToken: ""
+  # twilioPhoneNumber: ""    # outgoing E.164 number
+  # twilioVerifyService: ""  # Twilio Verify service SID
+  # twilioCallFormat: ""     # custom TwiML for calls
+
+  # ---------------------------------------------------------------------------
+  # Prometheus metrics
+  # Set metricsListenHttp to e.g. ":9090" to expose on a dedicated port;
+  # leave empty to serve /metrics on the main port.
+  # ---------------------------------------------------------------------------
+  enableMetrics: true
+  metricsListenHttp: ""
+
+persistence:
+  enabled: true
+  storageClass: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    external-dns.alpha.kubernetes.io/hostname: ntfy.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+  hosts:
+    - host: ntfy.srvx.cc
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+monitoring:
+  enabled: true
+  # Port number used when config.metricsListenHttp is non-empty (e.g. ":9090" → 9090)
+  metricsPort: 9090
+  labels:
+    release: prometheus
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+securityContext: {}
+
+containerSecurityContext: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

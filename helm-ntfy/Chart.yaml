@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ntfy
+description: Helm chart for ntfy.sh push notification service
+type: application
+version: 0.1.0
+appVersion: "latest"
