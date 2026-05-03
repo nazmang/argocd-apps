@@ -1,0 +1,244 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ntfy.fullname" . }}-config
+  labels:
+    {{- include "ntfy.labels" . | nindent 4 }}
+data:
+  server.yml: |
+    # Server
+    base-url: {{ .Values.config.baseUrl | quote }}
+    behind-proxy: {{ .Values.config.behindProxy }}
+    listen-http: {{ .Values.config.listenHttp | quote }}
+    {{- if .Values.config.listenHttps }}
+    listen-https: {{ .Values.config.listenHttps | quote }}
+    {{- end }}
+    {{- if .Values.config.keyFile }}
+    key-file: {{ .Values.config.keyFile | quote }}
+    {{- end }}
+    {{- if .Values.config.certFile }}
+    cert-file: {{ .Values.config.certFile | quote }}
+    {{- end }}
+    {{- if .Values.config.listenUnix }}
+    listen-unix: {{ .Values.config.listenUnix | quote }}
+    {{- end }}
+    {{- if .Values.config.proxyForwardedHeader }}
+    proxy-forwarded-header: {{ .Values.config.proxyForwardedHeader | quote }}
+    {{- end }}
+    {{- if .Values.config.proxyTrustedHosts }}
+    proxy-trusted-hosts: {{ .Values.config.proxyTrustedHosts | quote }}
+    {{- end }}
+
+    # Logging
+    log-level: {{ .Values.config.logLevel | quote }}
+    {{- if .Values.config.logFormat }}
+    log-format: {{ .Values.config.logFormat | quote }}
+    {{- end }}
+
+    # Database
+    {{- if .Values.config.databaseUrl }}
+    database-url: {{ .Values.config.databaseUrl | quote }}
+    {{- end }}
+    {{- if .Values.config.databaseReplicaUrls }}
+    database-replica-urls:
+      {{- range .Values.config.databaseReplicaUrls }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+
+    # Message cache
+    {{- if .Values.config.cacheFile }}
+    cache-file: {{ .Values.config.cacheFile | quote }}
+    {{- end }}
+    {{- if .Values.config.cacheDuration }}
+    cache-duration: {{ .Values.config.cacheDuration | quote }}
+    {{- end }}
+    {{- if .Values.config.cacheBatchSize }}
+    cache-batch-size: {{ .Values.config.cacheBatchSize }}
+    {{- end }}
+    {{- if .Values.config.cacheBatchTimeout }}
+    cache-batch-timeout: {{ .Values.config.cacheBatchTimeout | quote }}
+    {{- end }}
+    {{- if .Values.config.cacheStartupQueries }}
+    cache-startup-queries: {{ .Values.config.cacheStartupQueries | quote }}
+    {{- end }}
+
+    # Access control
+    auth-file: {{ .Values.config.authFile | quote }}
+    auth-default-access: {{ .Values.config.authDefaultAccess | quote }}
+    enable-login: {{ .Values.config.enableLogin }}
+    require-login: {{ .Values.config.requireLogin }}
+    {{- if .Values.config.authUsers }}
+    auth-users:
+      {{- range .Values.config.authUsers }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.config.authAccess }}
+    auth-access:
+      {{- range .Values.config.authAccess }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.config.authTokens }}
+    auth-tokens:
+      {{- range .Values.config.authTokens }}
+      - {{ . | quote }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.config.webPushFile }}
+    web-push-file: {{ .Values.config.webPushFile | quote }}
+    {{- end }}
+
+    # Attachments
+    attachment-cache-dir: {{ .Values.config.attachmentCacheDir | quote }}
+    {{- if .Values.config.attachmentTotalSizeLimit }}
+    attachment-total-size-limit: {{ .Values.config.attachmentTotalSizeLimit | quote }}
+    {{- end }}
+    {{- if .Values.config.attachmentFileSizeLimit }}
+    attachment-file-size-limit: {{ .Values.config.attachmentFileSizeLimit | quote }}
+    {{- end }}
+    {{- if .Values.config.attachmentExpiryDuration }}
+    attachment-expiry-duration: {{ .Values.config.attachmentExpiryDuration | quote }}
+    {{- end }}
+
+    # Upstream
+    {{- if .Values.config.upstreamBaseUrl }}
+    upstream-base-url: {{ .Values.config.upstreamBaseUrl | quote }}
+    {{- end }}
+    {{- if .Values.config.upstreamAccessToken }}
+    upstream-access-token: {{ .Values.config.upstreamAccessToken | quote }}
+    {{- end }}
+
+    # Email — outgoing (SMTP sender)
+    {{- if .Values.config.smtpSenderAddr }}
+    smtp-sender-addr: {{ .Values.config.smtpSenderAddr | quote }}
+    {{- end }}
+    {{- if .Values.config.smtpSenderUser }}
+    smtp-sender-user: {{ .Values.config.smtpSenderUser | quote }}
+    {{- end }}
+    {{- if .Values.config.smtpSenderPass }}
+    smtp-sender-pass: {{ .Values.config.smtpSenderPass | quote }}
+    {{- end }}
+    {{- if .Values.config.smtpSenderFrom }}
+    smtp-sender-from: {{ .Values.config.smtpSenderFrom | quote }}
+    {{- end }}
+    {{- if .Values.config.smtpSenderVerify }}
+    smtp-sender-verify: {{ .Values.config.smtpSenderVerify }}
+    {{- end }}
+
+    # Email — incoming (SMTP server)
+    {{- if .Values.config.smtpServerListen }}
+    smtp-server-listen: {{ .Values.config.smtpServerListen | quote }}
+    {{- end }}
+    {{- if .Values.config.smtpServerDomain }}
+    smtp-server-domain: {{ .Values.config.smtpServerDomain | quote }}
+    {{- end }}
+    {{- if .Values.config.smtpServerAddrPrefix }}
+    smtp-server-addr-prefix: {{ .Values.config.smtpServerAddrPrefix | quote }}
+    {{- end }}
+
+    # Firebase Cloud Messaging
+    {{- if .Values.config.firebaseKeyFile }}
+    firebase-key-file: {{ .Values.config.firebaseKeyFile | quote }}
+    {{- end }}
+
+    # Web Push (VAPID)
+    {{- if .Values.config.webPushPublicKey }}
+    web-push-public-key: {{ .Values.config.webPushPublicKey | quote }}
+    {{- end }}
+    {{- if .Values.config.webPushPrivateKey }}
+    web-push-private-key: {{ .Values.config.webPushPrivateKey | quote }}
+    {{- end }}
+    {{- if .Values.config.webPushEmailAddress }}
+    web-push-email-address: {{ .Values.config.webPushEmailAddress | quote }}
+    {{- end }}
+    {{- if .Values.config.webPushExpiryWarningDuration }}
+    web-push-expiry-warning-duration: {{ .Values.config.webPushExpiryWarningDuration | quote }}
+    {{- end }}
+    {{- if .Values.config.webPushExpiryDuration }}
+    web-push-expiry-duration: {{ .Values.config.webPushExpiryDuration | quote }}
+    {{- end }}
+
+    # Rate limiting — per visitor
+    {{- if .Values.config.visitorRequestLimitBurst }}
+    visitor-request-limit-burst: {{ .Values.config.visitorRequestLimitBurst }}
+    {{- end }}
+    {{- if .Values.config.visitorRequestLimitReplenish }}
+    visitor-request-limit-replenish: {{ .Values.config.visitorRequestLimitReplenish | quote }}
+    {{- end }}
+    {{- if .Values.config.visitorRequestLimitExemptHosts }}
+    visitor-request-limit-exempt-hosts: {{ .Values.config.visitorRequestLimitExemptHosts | quote }}
+    {{- end }}
+    {{- if .Values.config.visitorSubscriptionLimit }}
+    visitor-subscription-limit: {{ .Values.config.visitorSubscriptionLimit }}
+    {{- end }}
+    {{- if .Values.config.visitorMessageDailyLimit }}
+    visitor-message-daily-limit: {{ .Values.config.visitorMessageDailyLimit }}
+    {{- end }}
+    {{- if .Values.config.visitorEmailLimitBurst }}
+    visitor-email-limit-burst: {{ .Values.config.visitorEmailLimitBurst }}
+    {{- end }}
+    {{- if .Values.config.visitorEmailLimitReplenish }}
+    visitor-email-limit-replenish: {{ .Values.config.visitorEmailLimitReplenish | quote }}
+    {{- end }}
+    {{- if .Values.config.visitorAttachmentTotalSizeLimit }}
+    visitor-attachment-total-size-limit: {{ .Values.config.visitorAttachmentTotalSizeLimit | quote }}
+    {{- end }}
+    {{- if .Values.config.visitorAttachmentDailyBandwidthLimit }}
+    visitor-attachment-daily-bandwidth-limit: {{ .Values.config.visitorAttachmentDailyBandwidthLimit | quote }}
+    {{- end }}
+    {{- if .Values.config.visitorPrefixBitsIpv4 }}
+    visitor-prefix-bits-ipv4: {{ .Values.config.visitorPrefixBitsIpv4 }}
+    {{- end }}
+    {{- if .Values.config.visitorPrefixBitsIpv6 }}
+    visitor-prefix-bits-ipv6: {{ .Values.config.visitorPrefixBitsIpv6 }}
+    {{- end }}
+    {{- if .Values.config.visitorSubscriberRateLimiting }}
+    visitor-subscriber-rate-limiting: {{ .Values.config.visitorSubscriberRateLimiting }}
+    {{- end }}
+
+    # Global limits
+    {{- if .Values.config.globalTopicLimit }}
+    global-topic-limit: {{ .Values.config.globalTopicLimit }}
+    {{- end }}
+    {{- if .Values.config.messageSizeLimit }}
+    message-size-limit: {{ .Values.config.messageSizeLimit | quote }}
+    {{- end }}
+    {{- if .Values.config.messageDelayLimit }}
+    message-delay-limit: {{ .Values.config.messageDelayLimit | quote }}
+    {{- end }}
+
+    # Payments / tiers (Stripe)
+    {{- if .Values.config.stripeSecretKey }}
+    stripe-secret-key: {{ .Values.config.stripeSecretKey | quote }}
+    {{- end }}
+    {{- if .Values.config.stripeWebhookKey }}
+    stripe-webhook-key: {{ .Values.config.stripeWebhookKey | quote }}
+    {{- end }}
+    {{- if .Values.config.billingContact }}
+    billing-contact: {{ .Values.config.billingContact | quote }}
+    {{- end }}
+
+    # Phone calls (Twilio)
+    {{- if .Values.config.twilioAccount }}
+    twilio-account: {{ .Values.config.twilioAccount | quote }}
+    {{- end }}
+    {{- if .Values.config.twilioAuthToken }}
+    twilio-auth-token: {{ .Values.config.twilioAuthToken | quote }}
+    {{- end }}
+    {{- if .Values.config.twilioPhoneNumber }}
+    twilio-phone-number: {{ .Values.config.twilioPhoneNumber | quote }}
+    {{- end }}
+    {{- if .Values.config.twilioVerifyService }}
+    twilio-verify-service: {{ .Values.config.twilioVerifyService | quote }}
+    {{- end }}
+    {{- if .Values.config.twilioCallFormat }}
+    twilio-call-format: {{ .Values.config.twilioCallFormat | quote }}
+    {{- end }}
+
+    # Prometheus metrics
+    enable-metrics: {{ .Values.config.enableMetrics }}
+    {{- if .Values.config.metricsListenHttp }}
+    metrics-listen-http: {{ .Values.config.metricsListenHttp | quote }}
+    {{- end }}
