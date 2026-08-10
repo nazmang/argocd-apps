@@ -1,5 +1,5 @@
 creation_rules:
-  - path_regex: helm-openclaw/templates/secret-.*\.yaml$
+  - path_regex: helm-openclaw/secret-.*\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|auth)$
   - age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
