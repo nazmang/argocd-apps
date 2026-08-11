@@ -33,6 +33,7 @@ spec:
               mkdir -p /home/node/.openclaw
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan
+              openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
           volumeMounts:
             - name: data
               mountPath: /home/node/.openclaw
@@ -53,8 +54,6 @@ spec:
           env:
             - name: OPENCLAW_TZ
               value: {{ .Values.env.tz | quote }}
-            - name: OPENCLAW_ALLOWED_ORIGINS
-              value: {{ .Values.env.allowedOrigins | quote }}
             - name: OPENCLAW_GATEWAY_TOKEN
               valueFrom:
                 secretKeyRef:
