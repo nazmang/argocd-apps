@@ -1,6 +1,7 @@
 image:
   repository: nazman/anamnestic-claw
-  tag: "main"
+  # TODO: replace with a real CI-built tag once GitHub Actions is wired up (no GitHub remote exists yet for anamnestic-claw)
+  tag: "bootstrap"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
