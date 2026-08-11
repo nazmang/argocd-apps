@@ -6,6 +6,8 @@ metadata:
     {{- include "openclaw.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "openclaw.selectorLabels" . | nindent 6 }}
@@ -16,14 +18,18 @@ spec:
     spec:
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
+      automountServiceAccountToken: false
       initContainers:
         - name: gateway-config-bootstrap
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           command:
             - sh
             - -c
             - |
+              set -e
               mkdir -p /home/node/.openclaw
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan

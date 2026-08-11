@@ -34,6 +34,11 @@ securityContext:
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
 
 nodeSelector: {}
 affinity: {}
@@ -46,6 +51,7 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/auth-type: basic
+    # must match secret-basic-auth.yaml's metadata.name
     nginx.ingress.kubernetes.io/auth-secret: openclaw-basic-auth
     nginx.ingress.kubernetes.io/auth-realm: "OpenClaw Gateway"
     external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
@@ -53,4 +59,3 @@ ingress:
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
 
 gatewayTokenSecretName: openclaw-gateway-token
-basicAuthSecretName: openclaw-basic-auth
