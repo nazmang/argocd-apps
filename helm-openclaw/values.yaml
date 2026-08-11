@@ -40,8 +40,17 @@ affinity: {}
 tolerations: []
 
 ingress:
-  enabled: false   # turned on in Task 3
+  enabled: true
+  className: nginx
+  host: openclaw.srvx.cc
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: openclaw-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "OpenClaw Gateway"
+    external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
 
 gatewayTokenSecretName: openclaw-gateway-token
 basicAuthSecretName: openclaw-basic-auth
-manageSecrets: false   # secrets are applied by hand (see Task 4) — Helm never renders/manages them
