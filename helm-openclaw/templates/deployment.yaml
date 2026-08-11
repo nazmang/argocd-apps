@@ -16,6 +16,23 @@ spec:
     spec:
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
+      initContainers:
+        - name: gateway-config-bootstrap
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /home/node/.openclaw
+              openclaw config set gateway.mode local
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+              subPath: openclaw-home
+            - name: data
+              mountPath: /home/node/.config/openclaw
+              subPath: openclaw-config
       containers:
         - name: openclaw
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
