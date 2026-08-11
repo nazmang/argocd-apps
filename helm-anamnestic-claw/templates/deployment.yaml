@@ -6,6 +6,8 @@ metadata:
     {{- include "anamnesticClaw.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "anamnesticClaw.selectorLabels" . | nindent 6 }}
@@ -16,6 +18,7 @@ spec:
     spec:
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
+      automountServiceAccountToken: false
       containers:
         - name: anamnestic-claw
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
