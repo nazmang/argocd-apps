@@ -1,0 +1,41 @@
+image:
+  repository: nazman/anamnestic-claw
+  tag: "main"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8000
+
+persistence:
+  storageClass: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+
+env:
+  databasePath: /data/health.db
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+
+nodeSelector: {}
+affinity: {}
+tolerations: []
+
+secretName: anamnestic-claw-secrets
