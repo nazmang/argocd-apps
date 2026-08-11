@@ -26,6 +26,7 @@ spec:
             - |
               mkdir -p /home/node/.openclaw
               openclaw config set gateway.mode local
+              openclaw config set gateway.bind lan
           volumeMounts:
             - name: data
               mountPath: /home/node/.openclaw
