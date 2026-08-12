@@ -68,6 +68,9 @@ healthPlugin:
   image:
     repository: nazman/anamnestic-claw-plugin
     tag: "main"
-    pullPolicy: IfNotPresent
+    # Always (not IfNotPresent): tag is a floating "main" tag, so a node
+    # that already cached an older "main" image must still pull the latest
+    # digest on every pod start, or plugin updates can silently never land.
+    pullPolicy: Always
   backendUrl: "http://anamnestic-claw.anamnestic-claw.svc.cluster.local:8000"
   tokenSecretName: health-plugin-token
