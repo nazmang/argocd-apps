@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/openclaw/openclaw
-  tag: "2026.6.34"
+  tag: "2026.7.1-2 "
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -63,3 +63,11 @@ ingress:
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
 
 gatewayTokenSecretName: openclaw-gateway-token
+
+healthPlugin:
+  image:
+    repository: nazman/anamnestic-claw-plugin
+    tag: "main"
+    pullPolicy: IfNotPresent
+  backendUrl: "http://anamnestic-claw.anamnestic-claw.svc.cluster.local:8000"
+  tokenSecretName: health-plugin-token
