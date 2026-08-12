@@ -9,8 +9,9 @@ Until then, deploying this chart means running the commands below by hand.
 
 ## Why the secrets live outside `templates/`
 
-`helm-openclaw/secret-basic-auth.yaml` and `helm-openclaw/secret-gateway-token.yaml`
-sit at the chart root, not under `templates/`. This is deliberate:
+`helm-openclaw/secret-basic-auth.yaml`, `helm-openclaw/secret-gateway-token.yaml`,
+and `helm-openclaw/secret-health-plugin-token.yaml` sit at the chart root, not
+under `templates/`. This is deliberate:
 
 - Helm only renders files under `templates/`. Keeping the secrets at chart
   root makes them invisible to `helm template`/`install`/`lint`
@@ -27,11 +28,12 @@ sit at the chart root, not under `templates/`. This is deliberate:
   entirely") for the full story.
 
 Practical consequence: `helm upgrade`/`helm template`/`helm lint` never
-touch these two files. They must be applied to the cluster separately,
+touch these three files. They must be applied to the cluster separately,
 **before** running `helm upgrade`, since the Deployment references
-`openclaw-gateway-token` via `secretKeyRef` and the Ingress references
-`openclaw-basic-auth` via the `auth-secret` annotation — if either Secret
-is missing, the pod won't start / the Ingress auth will fail closed.
+`openclaw-gateway-token` and `health-plugin-token` via `secretKeyRef` and
+the Ingress references `openclaw-basic-auth` via the `auth-secret`
+annotation — if any of the three Secrets is missing, the pod won't start
+(or, for the Ingress secret, auth will fail closed).
 
 ## Prerequisites
 
@@ -44,9 +46,10 @@ cd /path/to/argocd-apps   # repo root, so relative paths below resolve
 ## Full deploy sequence
 
 ```bash
-# 1. Decrypt + apply both secrets directly (they are not Helm-managed)
-sops -d helm-openclaw/secret-gateway-token.yaml | kubectl apply -n openclaw -f -
-sops -d helm-openclaw/secret-basic-auth.yaml    | kubectl apply -n openclaw -f -
+# 1. Decrypt + apply all three secrets directly (they are not Helm-managed)
+sops -d helm-openclaw/secret-gateway-token.yaml      | kubectl apply -n openclaw -f -
+sops -d helm-openclaw/secret-basic-auth.yaml         | kubectl apply -n openclaw -f -
+sops -d helm-openclaw/secret-health-plugin-token.yaml | kubectl apply -n openclaw -f -
 
 # 2. Install/upgrade the chart (renders everything under templates/ only)
 helm upgrade --install openclaw ./helm-openclaw -n openclaw --create-namespace
