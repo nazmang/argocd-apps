@@ -104,6 +104,22 @@ listed in `.sops.yaml`'s scoped `encrypted_regex` for this chart
 add a third key to either secret file, remember to extend that regex too,
 or the new key will be committed as plaintext.
 
+### `health-plugin-token` is a special case
+
+`health-plugin-token`'s `BACKEND_TOKEN` must always equal
+`helm-anamnestic-claw/secret.yaml`'s `API_BEARER_TOKEN` exactly — it's a
+duplicate of that value, kept in this namespace because Kubernetes Secrets
+don't cross namespaces. Rotating `API_BEARER_TOKEN` (see
+`helm-anamnestic-claw/commands.md`) without also updating this file leaves
+the plugin unable to authenticate to the backend (401s on every
+`log_weight` call) until both are back in sync. After updating either,
+restart the `openclaw` deployment so the `health-plugin-bootstrap`
+initContainer re-runs with the new value:
+
+```bash
+kubectl -n openclaw rollout restart deployment/openclaw
+```
+
 ## Verifying end-to-end (not just that nginx answers)
 
 A `401` from `https://openclaw.srvx.cc/healthz` only proves nginx-ingress's

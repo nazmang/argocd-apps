@@ -41,6 +41,35 @@ spec:
             - name: data
               mountPath: /home/node/.config/openclaw
               subPath: openclaw-config
+        - name: health-plugin-bootstrap
+          image: "{{ .Values.healthPlugin.image.repository }}:{{ .Values.healthPlugin.image.tag }}"
+          imagePullPolicy: {{ .Values.healthPlugin.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            - name: BACKEND_URL
+              value: {{ .Values.healthPlugin.backendUrl | quote }}
+            - name: BACKEND_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.healthPlugin.tokenSecretName }}
+                  key: BACKEND_TOKEN
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              mkdir -p /home/node/.openclaw
+              openclaw config set plugins.health-plugin.backendUrl "$BACKEND_URL"
+              openclaw config set plugins.health-plugin.backendToken "$BACKEND_TOKEN"
+              openclaw plugins install --force /plugin-src
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+              subPath: openclaw-home
+            - name: data
+              mountPath: /home/node/.config/openclaw
+              subPath: openclaw-config
       containers:
         - name: openclaw
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

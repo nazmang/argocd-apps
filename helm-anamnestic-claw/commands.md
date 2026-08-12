@@ -162,6 +162,12 @@ Both `SQLCIPHER_KEY` and `API_BEARER_TOKEN` are consumed via
 `templates/deployment.yaml`), so either rotation needs a pod restart to
 take effect — the running process only reads the env var once, at startup.
 
+**Also update the plugin's copy of this token.** `helm-openclaw/secret-health-plugin-token.yaml`'s
+`BACKEND_TOKEN` is a duplicate of this value in the `openclaw` namespace —
+see `helm-openclaw/commands.md`'s "`health-plugin-token` is a special
+case" section. Rotating one without the other breaks the health plugin's
+calls to this backend.
+
 ## Verifying end-to-end
 
 ```bash
