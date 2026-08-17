@@ -5,6 +5,9 @@ creation_rules:
   - path_regex: helm-anamnestic-claw/secret\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(SQLCIPHER_KEY|API_BEARER_TOKEN)$
+  - path_regex: helm-n8n/templates/secret\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD)$
   - age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     path_regex: \.(yaml|yml|env|json)$
     encrypted_regex: ^(SOPS_AGE_KEY|.*password.*|.*PASSWORD.*|.*Secret.*|email|.*USERNAME.*|MIKROTIK_BASEURL|access-token|unseal_keys.*|vault-init.yaml|object-storage-configs.yaml|api-token|OPENSEARCH_.*)$

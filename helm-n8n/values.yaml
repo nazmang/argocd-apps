@@ -1,0 +1,81 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: n8nio/n8n
+  tag: "2.33.3"
+  pullPolicy: IfNotPresent
+
+port: 5678
+
+env:
+  N8N_HOST: ktulu.srvx.cc
+  N8N_PROTOCOL: https
+  N8N_PORT: "5678"
+  WEBHOOK_URL: https://ktulu.srvx.cc/
+  N8N_EDITOR_BASE_URL: https://ktulu.srvx.cc/
+  GENERIC_TIMEZONE: Europe/Sofia
+  N8N_BASIC_AUTH_ACTIVE: "true"
+
+# Sensitive values (N8N_ENCRYPTION_KEY, N8N_BASIC_AUTH_USER, N8N_BASIC_AUTH_PASSWORD)
+# come from the SOPS-encrypted templates/secret.yaml, not from here.
+
+persistence:
+  enabled: true
+  storageClass: nfs-client
+  accessModes:
+    - ReadWriteOnce
+  size: 2Gi
+
+service:
+  type: ClusterIP
+  port: 5678
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    external-dns.alpha.kubernetes.io/hostname: ktulu.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+  hosts:
+    - host: ktulu.srvx.cc
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+httproute:
+  enabled: false
+  parentRefs:
+    - name: gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - ktulu.srvx.cc
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+securityContext:
+  fsGroup: 1000
+
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

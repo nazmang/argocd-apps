@@ -1,0 +1,6 @@
+apiVersion: v2
+name: n8n
+description: Helm chart for self-hosted n8n (bg-coast-news automation pipeline)
+type: application
+version: 0.1.0
+appVersion: "2.33.3"
