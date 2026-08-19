@@ -302,6 +302,9 @@ tenant:
     - name: thanos
       objectLock: false
       region: us-east-1
+    - name: bg-coast-news-assets
+      objectLock: false
+      region: us-east-1
   ###
   # Array of Kubernetes secrets from which the Operator generates MinIO users during tenant provisioning.
   # Each element in the array is an object consisting of a key-value pair ``name: <string>``, where the ``<string>`` references an opaque Kubernetes secret.
@@ -538,3 +541,36 @@ ingress:
 #      config.env: |-
 #        export MINIO_ROOT_USER='minio'
 #        export MINIO_ROOT_PASSWORD='minio123'
+
+# Public ingress for the bg-coast-news-assets bucket only, so the Shotstack render
+# API (external SaaS) can fetch audio/SRT objects by URL instead of ingesting them
+# into Shotstack's own storage (which was consuming the paid plan's storage quota).
+# Routed through the same Cloudflare Tunnel as every other *.srvx.cc app (external-dns
+# creates the DNS record, the tunnel's existing wildcard forwards to nginx-ingress,
+# nginx routes by Host header) - no changes needed in the k8s/helm-cloudflared repo.
+extraResources:
+  - |
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: minio-bg-coast-public
+      namespace: minio-operator
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+        external-dns.alpha.kubernetes.io/hostname: bg-coast-assets.srvx.cc
+        external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+        external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    spec:
+      ingressClassName: nginx
+      rules:
+        - host: bg-coast-assets.srvx.cc
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: minio
+                    port:
+                      number: 443
