@@ -89,10 +89,16 @@ tenant:
   #    accessKey: minio
   #    secretKey: minio123
   #
+  # NOTE: the real root secretKey is NOT managed here. The Application
+  # (minio.yaml) has ignoreDifferences on this Secret's data/stringData,
+  # so ArgoCD's selfHeal will not revert whatever value is actually set
+  # live in the cluster - the value below is only a placeholder used if
+  # the tenant is ever bootstrapped from scratch. Rotate the real
+  # password via `kubectl` directly against the live Secret, never here.
   configSecret:
     name: myminio-env-configuration
     accessKey: minio
-    secretKey: minio123
+    secretKey: CHANGE-ME-ROTATED-OUT-OF-BAND-SEE-COMMENT-ABOVE
     #existingSecret: true
 
   ###
