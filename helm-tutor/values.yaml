@@ -1,3 +1,3 @@
 image:
   repository: ghcr.io/nazmang/ai-language-tutor
-  tag: fce5eb566972   # bump manually after each CI build; ArgoCD selfHeal picks it up on next sync
+  tag: 9af8f7b31d4f   # bump manually after each CI build; ArgoCD selfHeal picks it up on next sync
