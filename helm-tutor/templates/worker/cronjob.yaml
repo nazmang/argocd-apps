@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: tutor-generate-tomorrow
+  namespace: {{ .Release.Namespace }}
   labels:
     app: tutor-generate-tomorrow
 spec:
