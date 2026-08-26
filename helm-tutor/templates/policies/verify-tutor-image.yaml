@@ -1,0 +1,52 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-tutor-image
+spec:
+  # Rollout Audit → Enforce пройден 2026-08-14: tutor-bot:77bc1eb08ef4
+  # подписан, verify-images == pass, живой прогон подтверждён (см.
+  # docs/16-security.md § Проверка в кластере — там же баг Kyverno #16664,
+  # из-за которого подпись пришлось делать cosign v2.2.4, а не текущей).
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-cosign-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/nazmang/ai-language-tutor*"
+          # mutateDigest/verifyDigest: false — при Enforce не обязательны (это
+          # было ограничение только Audit-режима), но оставлены как есть:
+          # рабочая конфигурация лучше "теоретически более чистой" непроверенной.
+          mutateDigest: false
+          verifyDigest: false
+          # cosignOCI11: false — обязателен, и подпись должна быть выпущена
+          # СТАРЫМ cosign (мы используем 2.2.4, не текущий 3.x). Открытый баг
+          # Kyverno kyverno/kyverno#16664: на реестрах без OCI 1.1 Referrers
+          # API (GHCR — один из них) cosign 3.x кладёт подпись в Bundle-
+          # формате под fallback-тег без .sig, и Kyverno 1.18.2 отбрасывает
+          # такие дескрипторы ещё до чтения — "no signatures found" при
+          # реально валидной подписи (cosign verify её видит, Kyverno — нет).
+          # Обходной путь: подписывать cosign v2.2.4 (кладёт classic
+          # sha256-<digest>.sig, который Kyverno понимает). Подробности и
+          # ссылка на баг — docs/16-security.md.
+          cosignOCI11: false
+          # Образ приватный (ghcr.io/nazmang) — без кредов admission-controller
+          # не может даже прочитать манифест/подпись ("UNAUTHORIZED"). Secret
+          # ghcr-kyverno — копия ghcr-tutor (dev), создана вручную в namespace
+          # kyverno (см. docs/16-security.md), не через git.
+          imageRegistryCredentials:
+            secrets:
+              - ghcr-kyverno
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |-
+                      -----BEGIN PUBLIC KEY-----
+                      MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEBDmfHdSBoBdtAyQZY2ImMrh1pMxY
+                      BkjMdJLzV0AJAkYhqxI9+YOThgHKNxIyg49f4bedfWaH5LItLydGtB+Zqw==
+                      -----END PUBLIC KEY-----

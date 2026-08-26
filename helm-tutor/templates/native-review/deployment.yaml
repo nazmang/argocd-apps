@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: native-review
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: native-review
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: native-review
+  template:
+    metadata:
+      labels:
+        app: native-review
+      annotations:
+        reloader.stakater.com/auto: "true"  # docs/17: рестарт при ротации секретов (tutor-llm-keys и др.)
+    spec:
+      {{- include "tutor.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: native-review
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: Always
+          command: ["python", "-m", "uvicorn", "tutor.adapters.native_review.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8801"]
+          ports:
+            - containerPort: 8801
+          envFrom:
+            - secretRef:
+                name: tutor-db
+            - secretRef:
+                name: tutor-review-audio
+            - secretRef:
+                name: tutor-llm-keys  # OPENAI_API_KEY для tutor.llm.speech.synthesize
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            {{- include "tutor.securityContext" . | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8801
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8801
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8801
+            periodSeconds: 10
