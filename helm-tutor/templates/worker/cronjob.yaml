@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: tutor-generate-tomorrow
+  labels:
+    app: tutor-generate-tomorrow
+spec:
+  # suspend: true — манифест в кластере, расписание НЕ срабатывает.
+  # Ночная заготовка по-прежнему идёт с systemd-таймера на 10.164.1.105
+  # (deploy/systemd-remote/), пока перевод не проверен и suspend не снят
+  # вручную. См. TODO.md: «CronJob ночной заготовки — вместо таймера
+  # systemd из deploy/systemd-remote/».
+  suspend: true
+  # 03:00 — то же время, что deploy/systemd-remote/tutor-generate-tomorrow.timer
+  # (OnCalendar=*-*-* 03:00:00, локальное время хоста). timeZone требует
+  # проверки: хост 10.164.1.105 может быть не в UTC — сверить перед снятием suspend.
+  schedule: "0 3 * * *"
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # Без повторов: как и systemd Type=oneshot без Restart=, повторный
+      # прогон после сбоя означал бы двойной расход бюджета партии.
+      backoffLimit: 0
+      # 90 минут — тот же запас, что TimeoutStartSec в systemd-юните:
+      # партия ждёт до часа плюс добор обычными вызовами.
+      activeDeadlineSeconds: 5400
+      template:
+        metadata:
+          labels:
+            app: tutor-generate-tomorrow
+        spec:
+          restartPolicy: Never
+          {{- include "tutor.imagePullSecrets" . | nindent 10 }}
+          containers:
+            - name: tutor-generate-tomorrow
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: Always
+              command:
+                - python
+                - scripts/generate-tomorrow.py
+                - --batch
+                - --budget
+                - "1.00"
+              envFrom:
+                - secretRef:
+                    name: tutor-db
+                - secretRef:
+                    name: tutor-llm-keys
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+              securityContext:
+                {{- include "tutor.securityContext" . | nindent 16 }}
