@@ -2,6 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: native-review
+  namespace: {{ .Release.Namespace }}
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"  # дефолт ingress-nginx — 1m, аудиозаметки крупнее
     external-dns.alpha.kubernetes.io/hostname: review.srvx.cc
