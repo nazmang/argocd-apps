@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tutor-support-bot
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: tutor-support-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tutor-support-bot
+  template:
+    metadata:
+      labels:
+        app: tutor-support-bot
+      annotations:
+        reloader.stakater.com/auto: "true"
+    spec:
+      {{- include "tutor.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: tutor-support-bot
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: Always
+          command: ["python", "-m", "tutor.adapters.telegram.support"]
+          envFrom:
+            - secretRef:
+                name: tutor-support-bot
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            {{- include "tutor.securityContext" . | nindent 12 }}
