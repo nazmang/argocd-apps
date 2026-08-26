@@ -1,0 +1,6 @@
+apiVersion: v2
+name: tutor
+description: AI Language Tutor — application workloads (native-review, bot, support-bot, worker) and the Kyverno image-verification policy
+type: application
+version: 0.1.0
+appVersion: "1.0"

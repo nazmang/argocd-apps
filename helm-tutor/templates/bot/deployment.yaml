@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tutor-bot
+  labels:
+    app: tutor-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate  # long polling: два пода дерутся за getUpdates (docs/17)
+  selector:
+    matchLabels:
+      app: tutor-bot
+  template:
+    metadata:
+      labels:
+        app: tutor-bot
+      annotations:
+        reloader.stakater.com/auto: "true"  # рестарт при ротации tutor-llm-keys / tutor-db
+    spec:
+      {{- include "tutor.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: tutor-bot
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: Always
+          command: ["python", "-m", "tutor.adapters.telegram"]
+          envFrom:
+            - secretRef:
+                name: tutor-db
+            - secretRef:
+                name: tutor-llm-keys
+          env:
+            - name: TUTOR_ADMIN_IDS
+              value: "534896303"
+            - name: TUTOR_APP_VERSION
+              value: {{ .Values.image.tag | quote }}
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            {{- include "tutor.securityContext" . | nindent 12 }}
