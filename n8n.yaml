@@ -13,6 +13,17 @@ spec:
       releaseName: n8n
       valueFiles:
         - values.yaml
+        # SOPS-encrypted values, decrypted by the helm-secrets downloader plugin
+        # on argocd-repo-server. Prerequisites (plugin + sops + age key +
+        # helm.valuesFileSchemes in argocd-cm) are in
+        # docs/argocd-repo-server-helm-secrets.md — without them this sync fails.
+        #
+        # This Application MUST stay single-source (spec.source, not
+        # spec.sources): ArgoCD requires a $ref to be at the start of a value
+        # file string, which collides with the secrets:// prefix, and it does
+        # not resolve refs inside URLs.
+        # https://github.com/jkroepke/helm-secrets/wiki/ArgoCD-Integration
+        - secrets://secrets.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: n8n
