@@ -22,7 +22,9 @@ metadata:
   name: renderd-<jobId>
   namespace: n8n
 spec:
-  ttlSecondsAfterFinished: 300   # finished Job cleans itself up
+  ttlSecondsAfterFinished: 120   # short on purpose: the namespace quota counts
+                                 # finished Jobs too, so a long TTL turns a
+                                 # burst of articles into a 403 on the newest
   activeDeadlineSeconds: 300     # hard timeout from the platform, not from our code
   backoffLimit: 0                # no silent retries: a re-render costs TTS/stock money
   template:
@@ -53,7 +55,9 @@ spec:
             - name: RENDERD_SPEC
               value: '<spec json: srtUrl, audioUrl, visualType, visualUrl, visualSlides, audioDuration>'
             - name: RENDERD_THREADS
-              value: "3"
+              # must not exceed limits.cpu below, or ffmpeg spends the render
+              # being throttled by the CFS quota instead of encoding
+              value: "2"
             - name: RENDERD_S3_VERIFY
               value: "false"          # MinIO operator CA is not in the image
             # secret renderd-minio holds the "renderd" MinIO service account,

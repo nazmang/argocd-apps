@@ -19,8 +19,22 @@ metadata:
     kubernetes.io/service-account.name: renderd-runner
 type: kubernetes.io/service-account-token
 ---
-# Deliberately narrow: jobs only, this namespace only, no pods, no secrets,
-# no exec. A leaked token can start and stop renders and nothing else.
+# Scope: jobs only, in this namespace only. Do NOT read that as isolation.
+#
+# "create jobs" means "submit an arbitrary pod spec", and a pod spec can mount
+# any Secret in the namespace via secretKeyRef or a volume. So this token can
+# reach renderd-minio AND n8n-secrets (n8n's own encryption key and basic auth)
+# by simply asking for them in a Job it creates. That is a property of the
+# Kubernetes permission model, not something these rules can restrict: no
+# combination of verbs on `jobs` prevents it.
+#
+# Realistic cost of leaking this token: full read access to every secret in the
+# n8n namespace, plus arbitrary compute on the render nodes. Not "renders only".
+#
+# The fix, if that cost is unacceptable, is a separate namespace holding nothing
+# but renderd-minio and the pull secret - then "create jobs" there really does
+# buy an attacker nothing. Deliberately not done yet: it splits the render out
+# of this chart again. Recorded as a decision, not an oversight (2026-09-07).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:

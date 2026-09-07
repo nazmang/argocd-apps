@@ -115,10 +115,23 @@ affinity: {}
 # and neither was rotated: a service account is MinIO's mechanism for exactly
 # this, and rotating either would have broken n8n's working credential.
 #
+# KNOWN RISK, kube API over unverified TLS: 01d's Create Render Job and Get Job
+# Status talk to https://kubernetes.default.svc with allowUnauthorizedCerts,
+# because the API server's certificate is signed by the cluster CA and n8n's
+# HTTP node has no trust store for it. The ServiceAccount token above rides
+# that channel on every render, and it never expires. Traffic stays inside the
+# cluster, but nothing authenticates the server end. The CA is present in every
+# pod at /var/run/secrets/kubernetes.io/serviceaccount/ca.crt; wiring it in
+# needs an n8n SSL credential holding that PEM, which is a manual step nobody
+# has taken yet. Same class as the MinIO note above, higher stakes.
+#
 # NOT DONE, needs a decision: helm-tutor's images are cosign-signed and a
 # Kyverno ClusterPolicy enforces it, but that policy matches only
 # "ghcr.io/nazmang/ai-language-tutor*", so renderd images are unsigned and
 # unverified. Either extend the practice or record that it is out of scope.
 renderd:
   enabled: true
-  maxJobs: "5"        # blast-radius cap only; see templates/renderd-quota.yaml
+  # Blast-radius cap only (see templates/renderd-quota.yaml). Counts FINISHED
+  # Jobs too until their TTL expires, so it must clear a realistic burst: two
+  # renders per article, several articles within one TTL window.
+  maxJobs: "10"
