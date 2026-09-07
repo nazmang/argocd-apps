@@ -1,0 +1,23 @@
+{{- if .Values.renderd.enabled }}
+# Counts Jobs and NOTHING else, on purpose.
+#
+# A quota on limits.cpu/limits.memory would apply to every pod in this
+# namespace - n8n's own Deployment included - and would then have to be raised
+# in lockstep with n8n's limits. That bump has already happened once for real
+# (commit "raise memory limit 1Gi -> 2Gi to stop OOMKill crash loop"), and a
+# quota ceiling would have turned it into n8n failing admission instead of
+# simply restarting. A count-only quota has no such side effect: it does not
+# force pods to declare limits and does not constrain n8n at all.
+#
+# Concurrent renders are limited by node capacity instead - each Job asks for
+# 2 CPU, so extra ones stay Pending until a node frees up. This quota exists
+# purely to cap the blast radius if 01d ever loops and floods the API.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: renderd-job-count
+  namespace: {{ .Release.Namespace }}
+spec:
+  hard:
+    count/jobs.batch: {{ .Values.renderd.maxJobs | quote }}
+{{- end }}

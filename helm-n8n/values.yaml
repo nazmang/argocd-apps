@@ -79,3 +79,46 @@ containerSecurityContext:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Video rendering (replaces the external Shotstack API). n8n creates one
+# short-lived Job per render; nothing runs while no video is being made, so
+# there is no Deployment, Service or ingress here - only the identity n8n uses
+# and a count cap. The Job itself is renderd-job-template.yaml, which Helm does
+# NOT render; it is the body 01d POSTs to the kube API.
+#
+# KNOWN GAP (raised 2026-09-07): these secrets are created by hand and nothing
+# in git says they must exist, so a cluster rebuild cannot restore them. The
+# repo already has .sops.yaml + an age key (that is how n8n-secrets is stored)
+# and a Vault install, so either route fits; the MinIO root password is the one
+# deliberate exception that stays out of git. Backlogged, not solved here.
+#
+# Two secrets are created by hand in this namespace, never committed:
+#
+#   renderd-minio      - MinIO credentials (created 2026-09-07, see below)
+#   ghcr-renderd       - pull secret for the private ghcr.io/nazmang package:
+#     kubectl -n n8n create secret docker-registry ghcr-renderd \
+#       --docker-server=ghcr.io --docker-username=nazmang \
+#       --docker-password=<PAT with read:packages>
+#
+# The render pod does NOT use root and does not use n8n's own credential. It
+# authenticates as a MinIO *service account* named "renderd", issued under the
+# existing hand-made user "bg-coast-news" (which n8n itself uses) and therefore
+# inheriting policy bg-coast-news-rw: Get/PutObject on bg-coast-news-assets/*
+# plus ListBucket - no DeleteObject, and no visibility of any other bucket
+# (thanos and review-audio are invisible to it; verified 2026-09-07).
+#
+# Issued with, and revocable by:
+#   mc admin user svcacct add l bg-coast-news --access-key renderd --secret-key <generated>
+#   mc admin user svcacct rm  l renderd
+#
+# Neither the user's own password nor the root password was needed for renderd
+# and neither was rotated: a service account is MinIO's mechanism for exactly
+# this, and rotating either would have broken n8n's working credential.
+#
+# NOT DONE, needs a decision: helm-tutor's images are cosign-signed and a
+# Kyverno ClusterPolicy enforces it, but that policy matches only
+# "ghcr.io/nazmang/ai-language-tutor*", so renderd images are unsigned and
+# unverified. Either extend the practice or record that it is out of scope.
+renderd:
+  enabled: true
+  maxJobs: "5"        # blast-radius cap only; see templates/renderd-quota.yaml

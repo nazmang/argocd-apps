@@ -1,0 +1,70 @@
+# NOT APPLIED BY ARGOCD - this file sits outside templates/ on purpose.
+#
+# It is the body that n8n's `01d-render` POSTs to
+#   https://kubernetes.default.svc/apis/batch/v1/namespaces/n8n/jobs
+# on every render, with <jobId> and <spec json> substituted by the
+# `Build Job Manifest` Code node. It lives here so the shape sits next to the
+# RBAC that permits it, and so a reviewer can see what that permission is
+# actually used for.
+#
+# This file is the ONLY source for the render pod's image tag, node affinity,
+# resources and timeouts - values.yaml deliberately does not repeat them,
+# because Helm does not render this Job and any duplicate there would look
+# configurable while silently doing nothing. Change the tag here AND in the
+# `Build Job Manifest` node of 01d.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: renderd-<jobId>
+  namespace: n8n
+spec:
+  ttlSecondsAfterFinished: 300   # finished Job cleans itself up
+  activeDeadlineSeconds: 300     # hard timeout from the platform, not from our code
+  backoffLimit: 0                # no silent retries: a re-render costs TTS/stock money
+  template:
+    spec:
+      restartPolicy: Never
+      # ghcr.io/nazmang packages are private (a plain pull gets 401), same as
+      # ai-language-tutor. The secret is created by hand in this namespace:
+      #   kubectl -n n8n create secret docker-registry ghcr-renderd \
+      #     --docker-server=ghcr.io --docker-username=nazmang \
+      #     --docker-password=<PAT with read:packages>
+      imagePullSecrets:
+        - name: ghcr-renderd
+      # k8s01/k8s02 sit at 89%/84% memory; keep the render peak off them.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: ["k8s03", "k8s04"]
+      containers:
+        - name: renderd
+          image: ghcr.io/nazmang/renderd:0.1.0
+          env:
+            - name: RENDERD_JOB_ID
+              value: "<jobId>"
+            - name: RENDERD_SPEC
+              value: '<spec json: srtUrl, audioUrl, visualType, visualUrl, visualSlides, audioDuration>'
+            - name: RENDERD_THREADS
+              value: "3"
+            - name: RENDERD_S3_VERIFY
+              value: "false"          # MinIO operator CA is not in the image
+            # secret renderd-minio holds the "renderd" MinIO service account,
+            # scoped to bg-coast-news-assets - not root, not n8n's own user
+            - name: RENDERD_S3_ENDPOINT
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-endpoint } }
+            - name: RENDERD_S3_KEY
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-key } }
+            - name: RENDERD_S3_SECRET
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-secret } }
+          resources:
+            requests: { cpu: 500m, memory: 256Mi }
+            limits:   { cpu: "2",  memory: 1Gi }
+          volumeMounts:
+            - { name: scratch, mountPath: /tmp }
+      volumes:
+        - name: scratch
+          emptyDir: { sizeLimit: 1Gi }

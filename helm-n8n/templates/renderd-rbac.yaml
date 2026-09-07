@@ -1,0 +1,47 @@
+{{- if .Values.renderd.enabled }}
+# Video rendering runs as one-shot Jobs that n8n creates itself, one per render
+# (see renderd-job-template.yaml). Nothing here runs continuously: this is only
+# the identity n8n authenticates with and the permission to start those Jobs.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: renderd-runner
+  namespace: {{ .Release.Namespace }}
+---
+# Long-lived token, consumed by n8n's HTTP Request nodes as an httpHeaderAuth
+# credential. It is the only new trust surface this feature introduces.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: renderd-runner-token
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/service-account.name: renderd-runner
+type: kubernetes.io/service-account-token
+---
+# Deliberately narrow: jobs only, this namespace only, no pods, no secrets,
+# no exec. A leaked token can start and stop renders and nothing else.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: renderd-job-runner
+  namespace: {{ .Release.Namespace }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: renderd-job-runner
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: renderd-job-runner
+subjects:
+  - kind: ServiceAccount
+    name: renderd-runner
+    namespace: {{ .Release.Namespace }}
+{{- end }}
