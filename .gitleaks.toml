@@ -1,25 +1,22 @@
 # gitleaks config for argocd-apps.
 #
-# SOPS-encrypted files are the *desired* state here, not findings: the values
-# are ciphertext and the age recipient is a public key. Allowlist them by path
-# so gitleaks stops guessing, and keep everything else in scope.
+# There is deliberately NO path-based allowlist here. SOPS-encrypted files were
+# once allowlisted wholesale by path, but that was measured and found to buy
+# nothing: gitleaks v8.30.1 with `useDefault = true` reports zero findings on
+# all seven committed encrypted files with no path allowlist at all. What the
+# path allowlist did cost was visibility — a partially-encrypted file (SOPS
+# encrypts only the fields matching that file's `encrypted_regex`, so a key
+# outside the regex is written in plaintext next to the ciphertext) was invisible
+# to gitleaks, and the `sops-encrypted-only` pre-commit hook only checks that a
+# `sops:` block exists, which is true of a partially-encrypted file too. Keeping
+# these paths in scope is the only gate that would catch that.
 #
-# This list must stay in sync with creation_rules in .sops.yaml. The
-# sops-encrypted-only pre-commit hook enforces the other half of the deal —
-# that these paths are never committed in plaintext.
+# The one allowlist below is content-based and narrow: the age *recipient* is a
+# public key by definition, and it appears in every encrypted file's `sops:`
+# metadata block plus .sops.yaml's creation_rules.
 
 [extend]
 useDefault = true
-
-[[allowlists]]
-description = "SOPS-encrypted files — ciphertext plus a public age recipient"
-paths = [
-  '''helm-n8n/secrets\.yaml$''',
-  '''helm-vault/auto-unseal/vault-init-secret\.yaml$''',
-  '''helm-ansible-semaphore/semaphore/secret\.yaml$''',
-  '''helm-openclaw/secret-.*\.yaml$''',
-  '''helm-anamnestic-claw/secret\.yaml$''',
-]
 
 [[allowlists]]
 description = "The age recipient is a public key by definition"

@@ -14,9 +14,18 @@ creation_rules:
   # --- ArgoCD-reconciled, decrypted by helm-secrets on argocd-repo-server ---
 
   # Helm VALUES file (not a manifest) consumed via `secrets://secrets.yaml`.
+  #
+  # The key list is explicit, and a new key MUST be added here before it is
+  # added to secrets.yaml — otherwise sops writes it in PLAINTEXT into a
+  # committed file. A prefix regex (`^(N8N_.*)$`) was tried and rejected: n8n's
+  # own configuration is full of secrets that do not start with N8N_
+  # (DB_POSTGRESDB_PASSWORD, QUEUE_BULL_REDIS_PASSWORD, SMTP_PASS,
+  # OPENAI_API_KEY), so the prefix would silently commit the next one in the
+  # clear. An explicit list is self-enforcing: forget it and `sops -e` leaves
+  # the value unencrypted where it is visible in review and to gitleaks.
   - path_regex: helm-n8n/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(N8N_.*)$
+    encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD)$
 
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
