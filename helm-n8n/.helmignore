@@ -1,0 +1,12 @@
+# secrets.yaml is a SOPS-encrypted VALUES file consumed via helm-secrets
+# (`secrets://secrets.yaml`), not part of the chart's rendered output. Keep it
+# out of `helm package` tarballs — shipping ciphertext in a chart archive is
+# pointless at best and a leak vector if the age key ever escapes.
+secrets.yaml
+
+# The renderd Job body is POSTed to the kube API by n8n, never rendered by Helm.
+renderd-job-template.yaml
+
+.git/
+.gitignore
+*.tgz

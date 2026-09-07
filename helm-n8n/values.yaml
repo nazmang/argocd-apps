@@ -19,8 +19,14 @@ env:
   GENERIC_TIMEZONE: Europe/Sofia
   N8N_BASIC_AUTH_ACTIVE: "true"
 
-# Sensitive values (N8N_ENCRYPTION_KEY, N8N_BASIC_AUTH_USER, N8N_BASIC_AUTH_PASSWORD)
-# come from the SOPS-encrypted templates/secret.yaml, not from here.
+# Secret values live in helm-n8n/secrets.yaml — a SOPS-encrypted *values* file,
+# not a manifest. ArgoCD supplies it via `secrets://secrets.yaml` (see n8n.yaml);
+# locally, render with `-f <(sops -d helm-n8n/secrets.yaml)`.
+# Keys here become keys of the n8n-secrets Secret, which deployment.yaml loads
+# wholesale with envFrom — so a key name here is an env var name in the pod.
+# Left empty on purpose: templates/secret.yaml fails the render rather than
+# create an empty Secret.
+secrets: {}
 
 persistence:
   enabled: true
