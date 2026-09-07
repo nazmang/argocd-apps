@@ -1,10 +1,31 @@
 repos:
+  # Upstream hook. Do NOT override `entry:` — v8.19 replaced `gitleaks protect`
+  # with `gitleaks git --pre-commit --staged`, and the old override silently
+  # broke on upgrade. The upstream entry already does the right thing and
+  # picks up .gitleaks.toml from the repo root on its own.
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.24.2 # Use latest from: https://github.com/gitleaks/gitleaks/releases
+    rev: v8.30.1 # latest from: https://github.com/gitleaks/gitleaks/releases
     hooks:
       - id: gitleaks
-        name: Detect hardcoded secrets
-        description: Runs gitleaks to detect secrets in your code.
-        entry: gitleaks protect --staged -v --config .gitleaks.toml
-        language: golang
-        # stages: [commit] # Default on commit stage
+
+  # gitleaks catches secrets that were never meant to be committed. This
+  # catches the opposite mistake: a file that IS meant to be committed, but
+  # encrypted, being staged in plaintext — e.g. after `sops -d -i` when the
+  # matching `sops -e -i` was forgotten. That is the single most likely way
+  # this repo leaks, because the plaintext form of every one of these files is
+  # a legitimate intermediate state.
+  - repo: local
+    hooks:
+      - id: sops-encrypted-only
+        name: SOPS files must be encrypted
+        language: system
+        pass_filenames: true
+        files: '^(helm-n8n/secrets\.yaml|helm-vault/auto-unseal/vault-init-secret\.yaml|helm-ansible-semaphore/semaphore/secret\.yaml|helm-openclaw/secret-.*\.yaml|helm-anamnestic-claw/secret\.yaml)$'
+        entry: >-
+          bash -c 'rc=0; for f in "$@"; do
+            if ! grep -q "^sops:" "$f"; then
+              echo "REFUSING: $f is staged in PLAINTEXT (no sops: block)."
+              echo "  Re-encrypt it:  SOPS_AGE_KEY_FILE=\$PWD/.age/age.key sops -e -i $f"
+              rc=1
+            fi
+          done; exit $rc' --
