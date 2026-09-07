@@ -1,13 +1,51 @@
+# Every rule here is scoped to an exact path. There is deliberately NO catch-all:
+# if `sops -e` says "no matching creation rules found", that is the design — add
+# an explicit rule for the new file rather than letting a broad regex guess which
+# of its fields are sensitive.
+#
+# Changing this file does NOT affect decryption of already-encrypted files: sops
+# records the encrypted_regex it used inside each file's own `sops:` metadata
+# block. These rules govern new encryption only.
+#
+# Single recipient, the repo's age key. Private half lives in .age/age.key
+# (gitignored, mode 600) and is copied into the cluster as the argocd Secret
+# helm-secrets-private-keys — see docs/argocd-repo-server-helm-secrets.md.
 creation_rules:
+  # --- ArgoCD-reconciled, decrypted by helm-secrets on argocd-repo-server ---
+
+  # Helm VALUES file (not a manifest) consumed via `secrets://secrets.yaml`.
+  - path_regex: helm-n8n/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(N8N_.*)$
+
+  # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
+
+  # data key is literally named "vault-init.yaml" (kubectl create secret
+  # --from-file=vault-init.yaml), hence the odd-looking regex.
+  - path_regex: helm-vault/auto-unseal/vault-init-secret\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(vault-init\.yaml)$
+
+  - path_regex: helm-ansible-semaphore/semaphore/secret\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(password|email)$
+
+  # --- Applied by hand with `sops -d ... | kubectl apply`, never by ArgoCD ---
+  # See helm-openclaw/commands.md and helm-anamnestic-claw/commands.md for why
+  # these live at chart root instead of templates/.
+
   - path_regex: helm-openclaw/secret-.*\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|auth|password|BACKEND_TOKEN)$
+
   - path_regex: helm-anamnestic-claw/secret\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(SQLCIPHER_KEY|API_BEARER_TOKEN)$
-  - path_regex: helm-n8n/templates/secret\.yaml$
+
+  # --- Local operator artefacts, never committed (.gitignore'd) ---
+  # Vault's `operator init` output. Gitignored via
+  # helm-vault/auto-unseal/.gitignore (`vault-init.*`), but encrypted at rest so
+  # a 3-of-5 unseal quorum is not sitting in plaintext on a laptop.
+  - path_regex: helm-vault/auto-unseal/vault-init\.(yaml|json)$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD)$
-  - age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    path_regex: \.(yaml|yml|env|json)$
-    encrypted_regex: ^(SOPS_AGE_KEY|.*password.*|.*PASSWORD.*|.*Secret.*|email|.*USERNAME.*|MIKROTIK_BASEURL|access-token|unseal_keys.*|vault-init.yaml|object-storage-configs.yaml|api-token|OPENSEARCH_.*)$
+    encrypted_regex: ^(unseal_keys_b64|unseal_keys_hex|recovery_keys_b64|recovery_keys_hex|root_token)$
