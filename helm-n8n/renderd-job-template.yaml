@@ -37,15 +37,14 @@ spec:
       #     --docker-password=<PAT with read:packages>
       imagePullSecrets:
         - name: ghcr-renderd
-      # k8s01/k8s02 sit at 89%/84% memory; keep the render peak off them.
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values: ["k8s03", "k8s04"]
+      # Keep the render peak off k8s01/k8s02, which sit at 89%/84% memory.
+      # Selected by label rather than hostname so replacing or renaming a node
+      # does not silently strand every render in Pending:
+      #   kubectl label node k8s03 k8s04 renderd=allowed
+      # That label is applied by hand and lives only in the live cluster - it is
+      # on the list of manual steps a cluster rebuild has to repeat.
+      nodeSelector:
+        renderd: "allowed"
       containers:
         - name: renderd
           image: ghcr.io/nazmang/renderd:0.1.3
