@@ -12,7 +12,31 @@ spec:
     helm:
       releaseName: n8n
       valueFiles:
+        # Keep secrets.yaml last so values.yaml's `secrets: {}` placeholder can
+        # never win. (Tested 2026-09-07: the reverse order renders identically —
+        # Helm's map merge will not let an empty map wipe a populated one — so
+        # this order is conservative, not load-bearing.)
         - values.yaml
+        # SOPS-encrypted values, decrypted by the helm-secrets downloader plugin
+        # on argocd-repo-server. Prerequisites (plugin + sops + age key +
+        # helm.valuesFileSchemes in argocd-cm) are in
+        # docs/argocd-repo-server-helm-secrets.md — without them this sync fails.
+        #
+        # DANGER — the runbook is NOT the only prerequisite. n8n is currently
+        # running with N8N_ENCRYPTION_KEY set to a literal ENC[AES256_GCM,...]
+        # string (the old ciphertext-under-templates/ bug) and every stored
+        # credential is encrypted under it. secrets.yaml MUST first be pinned to
+        # that live value — plan Task 5 Steps 1-2 in
+        # docs/superpowers/plans/2026-09-07-helm-secrets-argocd.md — because
+        # syncPolicy.automated below (prune + selfHeal) will otherwise replace
+        # the live key on the first sync and silently orphan every credential.
+        #
+        # This Application MUST stay single-source (spec.source, not
+        # spec.sources): ArgoCD requires a $ref to be at the start of a value
+        # file string, which collides with the secrets:// prefix, and it does
+        # not resolve refs inside URLs.
+        # https://github.com/jkroepke/helm-secrets/wiki/ArgoCD-Integration
+        - secrets://secrets.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: n8n

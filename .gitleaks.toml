@@ -1,10 +1,26 @@
-[allowlist]
-description = "Allowlist for SOPS-encrypted files"
+# gitleaks config for argocd-apps.
+#
+# There is deliberately NO path-based allowlist here. SOPS-encrypted files were
+# once allowlisted wholesale by path, but that was measured and found to buy
+# nothing: gitleaks v8.30.1 with `useDefault = true` reports zero findings on
+# all seven committed encrypted files with no path allowlist at all. Had it
+# taken effect, the path allowlist would have cost visibility — a
+# partially-encrypted file (SOPS encrypts only the fields matching that file's
+# `encrypted_regex`, so a key outside the regex is written in plaintext next to
+# the ciphertext) would have been invisible to gitleaks, and the
+# `sops-encrypted-only` pre-commit hook only checks that a `sops:` block
+# exists, which is true of a partially-encrypted file too. Keeping these paths
+# in scope is the only gate that would catch that.
+#
+# The one allowlist below is content-based and narrow: the age *recipient* is a
+# public key by definition, and it appears in every encrypted file's `sops:`
+# metadata block plus .sops.yaml's creation_rules.
 
-[[allowlist.findings]]
-id = "cloudflared-sops-secret"
-description = "SOPS-encrypted Kubernetes Secret — not a real credential"
-fingerprints = [
-  "helm-cloudflared/overlays/cloud/secret.yaml:kubernetes-secret-yaml:2",
-  "helm-cloudflared/overlays/cloud/secret.yaml:generic-api-key:7",
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The age recipient is a public key by definition"
+regexes = [
+  '''age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe''',
 ]
