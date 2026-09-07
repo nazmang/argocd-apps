@@ -105,9 +105,11 @@ procedure and rotation caveats: `helm-openclaw/commands.md` and
 
 ## Local tooling
 
-`sops` here is 3.7.1 (2021); `argocd-repo-server` runs 3.13.3. Old files
-decrypt fine under new sops, so this is not urgent, but upgrading the local
-binary is worth doing.
+Local `sops` here is 3.7.1 (2021). `docs/argocd-repo-server-helm-secrets.md`
+pins sops 3.13.3 as the version to install on `argocd-repo-server` once that
+runbook is applied — nothing runs that version yet (see the helm-secrets
+status note above). Files encrypted under 3.7.1 decrypt fine under newer
+sops, so upgrading the local binary is not urgent, but it's worth doing.
 
 ## Known gaps
 

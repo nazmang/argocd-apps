@@ -47,7 +47,8 @@ assuming it is either live or dead.
 SOPS + age, one recipient. Three delivery mechanisms depending on the app:
 helm-secrets (`helm-n8n`), ksops via kustomize (`helm-vault/auto-unseal`,
 `helm-ansible-semaphore/semaphore`), and manual `sops -d | kubectl apply`
-(`helm-openclaw`, `helm-anamnestic-claw`).
+(`helm-openclaw`, `helm-anamnestic-claw`). The helm-secrets mechanism is
+configured in git but not yet active on the cluster — see `CLAUDE.md`.
 
 `CLAUDE.md` has the rules, the reasoning, and the traps. Read it before
 touching anything encrypted.
