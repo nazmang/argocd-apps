@@ -30,41 +30,36 @@ key is `.age/age.key` — gitignored, mode 600, never commit it. Always:
     export SOPS_AGE_KEY_FILE="$PWD/.age/age.key"
 
 **1. helm-secrets (`helm-n8n` only).** A SOPS-encrypted Helm *values* file,
-`helm-n8n/secrets.yaml`, referenced from `n8n.yaml` as
-`secrets://secrets.yaml` and decrypted by the helm-secrets downloader plugin on
-`argocd-repo-server`. Setup: `docs/argocd-repo-server-helm-secrets.md` — that
-runbook has NOT been applied to any cluster yet; the repo-server still lacks
-the plugin, so `n8n.yaml`'s sync will fail on `secrets://` until it is.
+`helm-n8n/secrets.yaml`, referenced from `n8n.yaml` as `secrets://secrets.yaml`
+and decrypted by the helm-secrets downloader plugin on `argocd-repo-server`.
 
-> **STOP — applying the runbook is NOT sufficient, and it is not the first
-> step.** Because of the ciphertext-as-secret bug above, the n8n pod is right
-> now running with `N8N_ENCRYPTION_KEY` set to the literal `ENC[AES256_GCM,...]`
-> string, and every credential n8n has stored is encrypted under it. The
-> encryption key will NOT be rotated (user decision, 2026-09-07).
-> `helm-n8n/secrets.yaml` must therefore be **pinned to the key n8n is actually
-> running** before anything syncs, or the first sync replaces the live key and
-> orphans every stored credential — silently, since `n8n.yaml` has
-> `syncPolicy.automated` with `prune: true, selfHeal: true` and there is no
-> manual gate once this is on `main`.
+**This is live and proven.** The plugin, `sops`, and the age key were already
+present on the repo-server before this migration; `docs/argocd-repo-server-helm-secrets.md`
+records what is actually installed and how to verify it. End-to-end verified
+2026-09-07: changing `helm-n8n/secrets.yaml`, pushing, and syncing produces a
+`n8n-secrets` Secret holding the correct decrypted values.
+
+> **The n8n encryption key lives in TWO places. Never change one alone.**
 >
-> Correct operator sequence, in this order:
+> n8n persists `N8N_ENCRYPTION_KEY` in `/home/node/.n8n/config` on its PVC and
+> **refuses to start** if that file and the env var disagree:
+> `Mismatching encryption keys ... Please make sure both keys match`. That is a
+> good safety property — it makes silent credential orphaning impossible — but
+> it means changing `helm-n8n/secrets.yaml` alone puts n8n into
+> CrashLoopBackOff. Learned the hard way on 2026-09-07 (~8 minutes of downtime).
 >
-> 1. Apply `docs/argocd-repo-server-helm-secrets.md` (plugin + sops + age key +
->    `helm.valuesFileSchemes`).
-> 2. Pin the live key into `helm-n8n/secrets.yaml` and commit it —
->    `docs/superpowers/plans/2026-09-07-helm-secrets-argocd.md`, Task 5
->    Steps 1–2 (Option A).
-> 3. Only then merge to `main` / let ArgoCD sync, and run Task 5 Steps 3–6 to
->    verify.
+> To rotate it, follow `docs/n8n-encryption-key-rotation.md`. Do not improvise.
 >
-> Doing 3 before 2 is the one irreversible mistake in this whole migration.
+> Also note: `envFrom` is resolved when the **pod** is created, not when a
+> container restarts. A crash-looping pod keeps the env it was created with, so
+> `kubectl rollout restart` will not pick up a new Secret — you must delete the
+> pod.
 
 - **helm-secrets decrypts values files only — never templates.** An encrypted
-  file under `templates/` is rendered verbatim by Helm, which is exactly the
-  bug this repo shipped to production, and which is still live in production
-  as of 2026-09-07 — fixed in git, not yet applied to the cluster: n8n is
-  running right now with its `N8N_ENCRYPTION_KEY` set to the literal
-  `ENC[AES256_GCM,...]` string.
+  file under `templates/` is rendered verbatim by Helm. This repo shipped that
+  bug to production: n8n ran for weeks with its `N8N_ENCRYPTION_KEY` set to the
+  literal `ENC[AES256_GCM,...]` envelope. Fixed and the key rotated on
+  2026-09-07 — see `docs/n8n-encryption-key-rotation.md` for the post-mortem.
   `helm-n8n/templates/secret.yaml` is now an ordinary template that reads
   `.Values.secrets` and `fail`s loudly, naming the offenders, if any of
   `N8N_ENCRYPTION_KEY` / `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` is
@@ -172,13 +167,12 @@ sops, so upgrading the local binary is not urgent, but it's worth doing.
   `quay.io/jetstack`. So the *what* is settled; the *whether it is deployed* is
   not.
 
-  Settle it with cluster evidence — do not assume an answer:
-
-      helm list -A | grep -i trust
-      kubectl get crd | grep -i bundle    # trust-manager installs bundles.trust.cert-manager.io
-
-  Then either add a `trustmanager.yaml` Application, fold it into an existing
-  chart's `commands.md` as a by-hand deploy, or delete the directory.
+  *Settled 2026-09-07 against the live cluster:* **it is not deployed.**
+  `helm list -A | grep -i trust` returns nothing and there is no
+  `bundles.trust.cert-manager.io` CRD. So the directory is an orphaned values
+  file for something that was never installed — decide whether to install
+  trust-manager properly (add a `trustmanager.yaml` Application) or delete the
+  directory. Re-check with those same two commands before acting.
 
   Related: cert-manager itself *is* used in this cluster — see
   `helm-vault/vault-config/vault-config.yaml` and
@@ -197,7 +191,17 @@ sops, so upgrading the local binary is not urgent, but it's worth doing.
   created by hand and exist nowhere in git, so a cluster rebuild cannot restore
   them. Documented at length in `helm-n8n/values.yaml`. Not solved.
 - Vault is deployed but not used as a secret backend. External Secrets +
-  Vault is the intended end state; helm-secrets is the current step.
+  Vault is the intended end state; helm-secrets is the current step. Vault
+  itself is installed from a different repository, and its auto-unseal design
+  (the current Secret-plus-Job approach vs. a Transit-based one) is an open
+  question that belongs there, not here. The plaintext `vault operator init`
+  output on the operator's laptop is still unaddressed — see
+  `helm-vault/auto-unseal/commands.md`.
+- **ArgoCD's own configuration is not in this repo.** It is Helm-managed
+  (release `argocd`, chart `argo-cd 7.7.16`) with no Application here and no
+  values file committed anywhere — including the helm-secrets and ksops wiring
+  that everything above depends on. `helm get values argocd -n argocd` is the
+  only record. See `docs/argocd-repo-server-helm-secrets.md`.
 - Kyverno enforces cosign signatures only for
   `ghcr.io/nazmang/ai-language-tutor*`. The `renderd` images are unsigned and
   unverified.

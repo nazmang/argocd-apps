@@ -22,14 +22,12 @@ spec:
         # helm.valuesFileSchemes in argocd-cm) are in
         # docs/argocd-repo-server-helm-secrets.md — without them this sync fails.
         #
-        # DANGER — the runbook is NOT the only prerequisite. n8n is currently
-        # running with N8N_ENCRYPTION_KEY set to a literal ENC[AES256_GCM,...]
-        # string (the old ciphertext-under-templates/ bug) and every stored
-        # credential is encrypted under it. secrets.yaml MUST first be pinned to
-        # that live value — plan Task 5 Steps 1-2 in
-        # docs/superpowers/plans/2026-09-07-helm-secrets-argocd.md — because
-        # syncPolicy.automated below (prune + selfHeal) will otherwise replace
-        # the live key on the first sync and silently orphan every credential.
+        # N8N_ENCRYPTION_KEY has a SECOND home: /home/node/.n8n/config on the
+        # n8n PVC. n8n refuses to start when that file and this Secret
+        # disagree, so changing the key here alone is an outage, not a
+        # rotation. syncPolicy.automated below (prune + selfHeal) means a push
+        # reaches the cluster with no manual gate. To rotate, follow
+        # docs/n8n-encryption-key-rotation.md — do not improvise.
         #
         # This Application MUST stay single-source (spec.source, not
         # spec.sources): ArgoCD requires a $ref to be at the start of a value
