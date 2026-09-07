@@ -61,8 +61,10 @@ the plugin, so `n8n.yaml`'s sync will fail on `secrets://` until it is.
 
 - **helm-secrets decrypts values files only — never templates.** An encrypted
   file under `templates/` is rendered verbatim by Helm, which is exactly the
-  bug this repo shipped to production until 2026-09-07: n8n ran with its
-  `N8N_ENCRYPTION_KEY` set to the literal `ENC[AES256_GCM,...]` string.
+  bug this repo shipped to production, and which is still live in production
+  as of 2026-09-07 — fixed in git, not yet applied to the cluster: n8n is
+  running right now with its `N8N_ENCRYPTION_KEY` set to the literal
+  `ENC[AES256_GCM,...]` string.
   `helm-n8n/templates/secret.yaml` is now an ordinary template that reads
   `.Values.secrets` and `fail`s loudly, naming the offenders, if any of
   `N8N_ENCRYPTION_KEY` / `N8N_BASIC_AUTH_USER` / `N8N_BASIC_AUTH_PASSWORD` is
@@ -118,9 +120,10 @@ procedure and rotation caveats: `helm-openclaw/commands.md` and
   `sops-encrypted-only` hook only tests that a staged file has a `sops:` block.
   That is true of a *partially* encrypted file too, so the hook cannot see a key
   that sops left in plaintext because it fell outside that file's
-  `encrypted_regex`. gitleaks is what catches that, which is why
-  `.gitleaks.toml` has **no path-based allowlist**: encrypted files stay in
-  gitleaks' scope. Keeping them in scope is free — verified 2026-09-07, gitleaks
+  `encrypted_regex`. gitleaks is what catches that — a path-based allowlist
+  would hide that plaintext key from gitleaks too, so `.gitleaks.toml` has
+  **no path-based allowlist**: encrypted files stay in gitleaks' scope.
+  Keeping them in scope is free — verified 2026-09-07, gitleaks
   v8.30.1 with `useDefault = true` reports no findings on all seven committed
   encrypted files without any path allowlist. Do not "quiet" gitleaks by
   allowlisting a SOPS path; if something is genuinely noisy, allowlist the
