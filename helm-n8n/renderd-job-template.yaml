@@ -7,6 +7,10 @@
 # RBAC that permits it, and so a reviewer can see what that permission is
 # actually used for.
 #
+# Bump the tag on EVERY code change: 0.1.0 was pushed before the TLS-verify
+# support existed, so RENDERD_S3_VERIFY was passed and silently ignored, and
+# the render failed at the upload step only after doing all the work.
+#
 # This file is the ONLY source for the render pod's image tag, node affinity,
 # resources and timeouts - values.yaml deliberately does not repeat them,
 # because Helm does not render this Job and any duplicate there would look
@@ -42,7 +46,7 @@ spec:
                     values: ["k8s03", "k8s04"]
       containers:
         - name: renderd
-          image: ghcr.io/nazmang/renderd:0.1.0
+          image: ghcr.io/nazmang/renderd:0.1.3
           env:
             - name: RENDERD_JOB_ID
               value: "<jobId>"
