@@ -12,6 +12,12 @@ spec:
       helm:
         valueFiles:
           - $values/helm-mailhog/values.yaml
+          # SOPS-encrypted, and deliberately WITHOUT a secrets:// prefix:
+          # ArgoCD requires $ref at the start of a value-file string, so the
+          # prefix cannot be used in a multi-source Application. Decryption
+          # relies on HELM_SECRETS_WRAPPER_ENABLED=true on argocd-repo-server,
+          # which wraps helm itself. See docs/argocd-repo-server-helm-secrets.md.
+          - $values/helm-mailhog/secrets.yaml
     - repoURL: https://github.com/nazmang/argocd-apps.git
       targetRevision: main
       ref: values

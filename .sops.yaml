@@ -27,6 +27,13 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD)$
 
+  # Multi-source probe: listed in mailhog.yaml WITHOUT a secrets:// prefix
+  # (ArgoCD rejects that prefix in multi-source Applications), decrypted by the
+  # helm-secrets wrapper on argocd-repo-server. Marker value only, no credential.
+  - path_regex: helm-mailhog/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(helm-secrets-probe)$
+
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
   # data key is literally named "vault-init.yaml" (kubectl create secret
