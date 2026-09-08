@@ -43,7 +43,7 @@ creation_rules:
   # See helm-openclaw/commands.md and helm-anamnestic-claw/commands.md for why
   # these live at chart root instead of templates/.
 
-  - path_regex: helm-openclaw/secret-.*\.yaml$
+  - path_regex: helm-openclaw/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|auth|password|BACKEND_TOKEN)$
 

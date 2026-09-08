@@ -41,6 +41,7 @@ spec:
             - name: data
               mountPath: /home/node/.config/openclaw
               subPath: openclaw-config
+{{- if .Values.healthPlugin.enabled }}
         - name: health-plugin-bootstrap
           image: "{{ .Values.healthPlugin.image.repository }}:{{ .Values.healthPlugin.image.tag }}"
           imagePullPolicy: {{ .Values.healthPlugin.image.pullPolicy }}
@@ -70,6 +71,7 @@ spec:
             - name: data
               mountPath: /home/node/.config/openclaw
               subPath: openclaw-config
+{{- end }}
       containers:
         - name: openclaw
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"

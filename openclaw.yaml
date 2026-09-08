@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openclaw
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/nazmang/argocd-apps.git
+    targetRevision: main
+    path: helm-openclaw
+    helm:
+      releaseName: openclaw
+      valueFiles:
+        - values.yaml
+        # SOPS-encrypted values, decrypted by the helm-secrets downloader plugin
+        # on argocd-repo-server. See docs/argocd-repo-server-helm-secrets.md.
+        #
+        # This Application MUST stay single-source (spec.source, not
+        # spec.sources): ArgoCD requires a $ref to be at the start of a value
+        # file string, which collides with the secrets:// prefix. If it ever
+        # needs a second source, drop the prefix and list the file as
+        # $values/helm-openclaw/secrets.yaml instead.
+        - secrets://secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openclaw
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  info:
+    - name: upstream
+      value: "https://github.com/openclaw/openclaw"
+    - name: purpose
+      value: "OpenClaw agent gateway, reachable at https://openclaw.srvx.cc"
+    # strategy: Recreate with a single RWO PVC on NFS - every sync that changes
+    # the pod template is a short outage, by design. The old pod is torn down
+    # before the new one starts, so a bad image reference is downtime, not a
+    # degraded rollout. Verify image tags exist before changing them.
+    #
+    # healthPlugin.enabled is false: its initContainer needs an image that has
+    # never been built. See the comment in helm-openclaw/values.yaml.
