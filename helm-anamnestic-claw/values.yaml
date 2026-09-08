@@ -2,7 +2,13 @@ image:
   repository: nazman/anamnestic-claw
   # TODO: replace with a real CI-built tag once GitHub Actions is wired up (no GitHub remote exists yet for anamnestic-claw)
   tag: "bootstrap"
-  pullPolicy: IfNotPresent
+  # Always, not IfNotPresent: "bootstrap" is a mutable tag that gets rebuilt and
+  # pushed by hand, so IfNotPresent would silently keep serving whatever the node
+  # already cached. This is also what the cluster was actually running before the
+  # chart came under ArgoCD on 2026-09-08 - the chart said IfNotPresent and the
+  # live Deployment said Always, and adopting the chart as written would have
+  # been a real behaviour change disguised as an ownership transfer.
+  pullPolicy: Always
 
 replicaCount: 1
 
