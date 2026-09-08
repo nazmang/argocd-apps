@@ -50,6 +50,25 @@ records what is actually installed and how to verify it. End-to-end verified
 >
 > To rotate it, follow `docs/n8n-encryption-key-rotation.md`. Do not improvise.
 >
+**Attaching an encrypted values file depends on the Application's shape.** Both
+forms are verified working on this cluster:
+
+| Application | How to list the encrypted values file |
+|---|---|
+| `spec.source` (single) | `- secrets://secrets.yaml` — path relative to the chart dir |
+| `spec.sources` (multi) | `- $values/<chart-dir>/secrets.yaml` — **no** `secrets://` prefix |
+
+Multi-source cannot use the prefix: ArgoCD requires `$ref` at the start of a
+value-file string and does not resolve refs inside URLs. It works anyway
+because `argocd-repo-server` runs with `HELM_SECRETS_WRAPPER_ENABLED=true`,
+which wraps `helm` itself and decrypts value files it is handed. Verified
+2026-09-07 on `helm-mailhog` (probe since removed; the result is this table).
+
+Do **not** name the encrypted file `values.yaml`. Helm auto-loads a chart's own
+`values.yaml` as defaults, so encrypting it makes ciphertext the default value
+set — and the whole thing then rests on the overlay always winning. That is the
+same failure shape as the bug above. Keep secrets in a separately-named file.
+
 > Also note: `envFrom` is resolved when the **pod** is created, not when a
 > container restarts. A crash-looping pod keeps the env it was created with, so
 > `kubectl rollout restart` will not pick up a new Secret — you must delete the
