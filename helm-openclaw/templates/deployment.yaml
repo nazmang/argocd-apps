@@ -61,9 +61,19 @@ spec:
             - |
               set -e
               mkdir -p /home/node/.openclaw
-              openclaw config set plugins.health-plugin.backendUrl "$BACKEND_URL"
-              openclaw config set plugins.health-plugin.backendToken "$BACKEND_TOKEN"
+              # Install BEFORE configuring. OpenClaw validates the whole config
+              # against the installed plugins' schemas, so setting a key for a
+              # plugin it does not know yet fails with
+              #   Config validation failed: plugins: Unrecognized key: "health-plugin"
+              # The original order had these the other way round, which is one
+              # of the reasons this initContainer had never run successfully.
               openclaw plugins install --force /plugin-src
+              # Config lives at plugins.entries.<id>.config.<key> - note both
+              # the "entries" and "config" levels. plugins.<id>.<key> is not a
+              # valid path and is rejected by the schema.
+              openclaw config set plugins.entries.health-plugin.config.backendUrl "$BACKEND_URL"
+              openclaw config set plugins.entries.health-plugin.config.backendToken "$BACKEND_TOKEN"
+              openclaw config set plugins.entries.health-plugin.enabled true
           volumeMounts:
             - name: data
               mountPath: /home/node/.openclaw

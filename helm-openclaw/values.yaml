@@ -65,20 +65,30 @@ ingress:
 gatewayTokenSecretName: openclaw-gateway-token
 
 healthPlugin:
-  # Enabled 2026-09-08, once nazman/anamnestic-claw-plugin:main was finally built
-  # and pushed. Before that the image did not exist at all, which is why this
-  # initContainer sat in the chart but never in the cluster — and why the flag
-  # exists: with strategy: Recreate a missing image is an outage, not a degraded
-  # rollout, because the old pod is torn down first.
+  # Enabled 2026-09-08, after the plugin was ported to the OpenClaw 2026.7.x
+  # plugin API. Two separate problems had to be fixed before this could be true:
   #
-  # The image is built from ../anamnestic-claw/plugin (Dockerfile there), on the
-  # same openclaw base tag as image.tag above so plugin and core cannot drift
-  # apart. Rebuild and push after any change to that source — "main" is mutable,
-  # which is why pullPolicy below is Always.
+  #   1. nazman/anamnestic-claw-plugin:main did not exist on Docker Hub at all.
+  #   2. Once built, it still would not install: the plugin was written against
+  #      an older API (bare default-export register function, ctx.config.get,
+  #      handler(args), no id/configSchema/contracts.tools in the manifest).
+  #
+  # Verified in a container before flipping this: `openclaw plugins install`
+  # succeeds and `openclaw plugins inspect health-plugin --runtime --json`
+  # reports status=loaded, activated=true and all seven tools. The first attempt
+  # at enabling this skipped that check and took openclaw down - with
+  # strategy: Recreate, a plugin that cannot start is an outage, not a degraded
+  # rollout, which is precisely why this flag exists. Do not flip it without
+  # running the install in a container first.
+  #
+  # The image is built from ../anamnestic-claw/plugin on the same openclaw base
+  # tag as image.tag above, so plugin and core cannot drift apart. Rebuild and
+  # push after any change to that source - "main" is mutable, hence
+  # pullPolicy: Always below.
   #
   # health-plugin-token is gated on this same flag, so the Secret and its only
   # consumer appear and disappear together.
-  enabled: false
+  enabled: true
   image:
     repository: nazman/anamnestic-claw-plugin
     tag: "main"
