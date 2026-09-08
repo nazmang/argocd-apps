@@ -65,23 +65,20 @@ ingress:
 gatewayTokenSecretName: openclaw-gateway-token
 
 healthPlugin:
-  # DISABLED, and this is not a preference — it is a blocker.
+  # Enabled 2026-09-08, once nazman/anamnestic-claw-plugin:main was finally built
+  # and pushed. Before that the image did not exist at all, which is why this
+  # initContainer sat in the chart but never in the cluster — and why the flag
+  # exists: with strategy: Recreate a missing image is an outage, not a degraded
+  # rollout, because the old pod is torn down first.
   #
-  # The health-plugin-bootstrap initContainer needs
-  # nazman/anamnestic-claw-plugin:main, and that image does not exist on Docker
-  # Hub (verified 2026-09-08: the registry returns 401, which is what Docker Hub
-  # answers for a repository that isn't there). Source and a Dockerfile live in
-  # ../anamnestic-claw/plugin/, but nothing has ever been built and pushed.
+  # The image is built from ../anamnestic-claw/plugin (Dockerfile there), on the
+  # same openclaw base tag as image.tag above so plugin and core cannot drift
+  # apart. Rebuild and push after any change to that source — "main" is mutable,
+  # which is why pullPolicy below is Always.
   #
-  # That is why the initContainer was in this chart but never in the cluster.
-  # With strategy: Recreate, enabling it before the image exists does not
-  # degrade openclaw — it takes it down: the old pod is torn down first and the
-  # new one never gets past ImagePullBackOff.
-  #
-  # To enable: build and push plugin/Dockerfile as nazman/anamnestic-claw-plugin:main,
-  # confirm it pulls, then flip this to true. health-plugin-token is gated on the
-  # same flag, so both appear together.
-  enabled: false
+  # health-plugin-token is gated on this same flag, so the Secret and its only
+  # consumer appear and disappear together.
+  enabled: true
   image:
     repository: nazman/anamnestic-claw-plugin
     tag: "main"
