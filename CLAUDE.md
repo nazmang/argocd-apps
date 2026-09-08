@@ -95,13 +95,19 @@ A `ksops` generator lists the encrypted file; ArgoCD's kustomize build decrypts
 it. Check with
 `kustomize build --enable-alpha-plugins --enable-exec <dir>`.
 
-**3. Applied by hand (`helm-openclaw`, `helm-anamnestic-claw`).** Not
-ArgoCD-managed at all. Encrypted Secrets sit at *chart root*, deliberately
-outside `templates/`, and are applied with
-`sops -d <file> | kubectl apply -n <ns> -f -` **before** `helm upgrade`. Full
-procedure and rotation caveats: `helm-openclaw/commands.md` and
-`helm-anamnestic-claw/commands.md`. Read those before touching either chart —
-`SQLCIPHER_KEY` in particular cannot be rotated by swapping the Secret.
+**3. Applied by hand — none left.** `helm-openclaw` and `helm-anamnestic-claw`
+were the last two and moved to mechanism 1 on 2026-09-08, once helm-secrets
+proved out. Their `commands.md` files keep the manual sequence as a break-glass
+path and are still worth reading for the hard-won parts: the `Recreate`
+strategy reasoning, the `BACKEND_TOKEN` / `API_BEARER_TOKEN` cross-namespace
+pairing, and above all `SQLCIPHER_KEY`, which cannot be rotated by swapping the
+Secret. **Do not run `helm upgrade` against either chart now** — ArgoCD has
+`selfHeal: true` and will revert it.
+
+`helm-openclaw`'s `healthPlugin.enabled` is `false`: its initContainer needs
+`nazman/anamnestic-claw-plugin:main`, an image that has never been built. With
+`strategy: Recreate`, enabling it before that image exists takes openclaw down
+rather than degrading it. See the comment in `helm-openclaw/values.yaml`.
 
 ## Rules
 
