@@ -49,7 +49,7 @@ affinity: {}
 tolerations: []
 
 ingress:
-  enabled: false
+  enabled: true
   className: nginx
   host: openclaw.srvx.cc
   annotations:
