@@ -206,9 +206,15 @@ sops, so upgrading the local binary is not urgent, but it's worth doing.
   distribute the operator CA into the image's trust store — which is precisely
   what trust-manager does, so resolving the `helm-trustmanager/` gap above is
   the path to closing this one.
-- Several secrets in the `n8n` namespace (`renderd-minio`, `ghcr-renderd`) are
-  created by hand and exist nowhere in git, so a cluster rebuild cannot restore
-  them. Documented at length in `helm-n8n/values.yaml`. Not solved.
+- `helm-tutor`'s secrets (`tutor-db`, `tutor-llm-keys`, `tutor-review-audio`,
+  `tutor-support-bot`, `ghcr-tutor` — 15 values in namespace `dev`) are created
+  by hand and exist nowhere in git, so a cluster rebuild cannot restore them.
+  The app IS ArgoCD-managed, which makes this the largest remaining gap.
+  Deliberately not migrated into encrypted values yet: it holds the Anthropic,
+  OpenAI and DeepSeek API keys plus a Telegram bot token, and this repo is
+  public — so those belong behind Vault/External Secrets rather than in git,
+  and that decision is pending (2026-09-08).
+  The equivalent gap for n8n (`renderd-minio`, `ghcr-renderd`) is closed.
 - Vault is deployed but not used as a secret backend. External Secrets +
   Vault is the intended end state; helm-secrets is the current step. Vault
   itself is installed from a different repository, and its auto-unseal design

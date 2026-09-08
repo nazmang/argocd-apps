@@ -97,19 +97,12 @@ affinity: {}
 # and a count cap. The Job itself is renderd-job-template.yaml, which Helm does
 # NOT render; it is the body 01d POSTs to the kube API.
 #
-# KNOWN GAP (raised 2026-09-07): these secrets are created by hand and nothing
-# in git says they must exist, so a cluster rebuild cannot restore them. The
-# repo already has .sops.yaml + an age key (that is how n8n-secrets is stored)
-# and a Vault install, so either route fits; the MinIO root password is the one
-# deliberate exception that stays out of git. Backlogged, not solved here.
-#
-# Two secrets are created by hand in this namespace, never committed:
-#
-#   renderd-minio      - MinIO credentials (created 2026-09-07, see below)
-#   ghcr-renderd       - pull secret for the private ghcr.io/nazmang package:
-#     kubectl -n n8n create secret docker-registry ghcr-renderd \
-#       --docker-server=ghcr.io --docker-username=nazmang \
-#       --docker-password=<PAT with read:packages>
+# RESOLVED 2026-09-08: renderd-minio and ghcr-renderd used to be created by hand
+# and existed nowhere in git, so a cluster rebuild could not restore them. They
+# now come from helm-n8n/secrets.yaml (encrypted values) via
+# templates/renderd-secrets.yaml, like every other secret in this chart. The
+# MinIO *root* password stays out of git deliberately - renderd authenticates as
+# a scoped service account, not as root.
 #
 # The render pod does NOT use root and does not use n8n's own credential. It
 # authenticates as a MinIO *service account* named "renderd", issued under the
