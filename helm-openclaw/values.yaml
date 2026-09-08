@@ -49,7 +49,7 @@ affinity: {}
 tolerations: []
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   host: openclaw.srvx.cc
   annotations:
@@ -78,7 +78,7 @@ healthPlugin:
   #
   # health-plugin-token is gated on this same flag, so the Secret and its only
   # consumer appear and disappear together.
-  enabled: true
+  enabled: false
   image:
     repository: nazman/anamnestic-claw-plugin
     tag: "main"
