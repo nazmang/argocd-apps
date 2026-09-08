@@ -47,7 +47,7 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|auth|password|BACKEND_TOKEN)$
 
-  - path_regex: helm-anamnestic-claw/secret\.yaml$
+  - path_regex: helm-anamnestic-claw/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(SQLCIPHER_KEY|API_BEARER_TOKEN)$
 

@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: anamnestic-claw
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/nazmang/argocd-apps.git
+    targetRevision: main
+    path: helm-anamnestic-claw
+    helm:
+      releaseName: anamnestic-claw
+      valueFiles:
+        - values.yaml
+        # SOPS-encrypted values, decrypted by the helm-secrets downloader plugin
+        # on argocd-repo-server. See docs/argocd-repo-server-helm-secrets.md.
+        #
+        # This Application MUST stay single-source (spec.source, not
+        # spec.sources): ArgoCD requires a $ref to be at the start of a value
+        # file string, which collides with the secrets:// prefix. If it ever
+        # needs a second source, drop the prefix and list the file as
+        # $values/helm-anamnestic-claw/secrets.yaml instead.
+        - secrets://secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: anamnestic-claw
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  info:
+    - name: source
+      value: "https://github.com/nazmang/anamnestic-claw"
+    - name: purpose
+      value: "health backend for the OpenClaw health plugin"
+    # SQLCIPHER_KEY encrypts the on-disk database with those exact key bytes -
+    # it cannot be rotated by swapping the Secret. helm-anamnestic-claw/commands.md
+    # has the re-key procedure; read it before touching that value.
