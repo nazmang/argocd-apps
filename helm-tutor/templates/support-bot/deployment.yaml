@@ -28,12 +28,16 @@ spec:
           envFrom:
             - secretRef:
                 name: tutor-support-bot
+          # 194Mi в покое при потолке 256Mi — тот же обрыв, что у бота
+          # (OOMKilled 2026-09-09), просто ещё не сработавший: саппорт-бот
+          # никто не нагружает. Ждать, пока сработает, незачем — числа те
+          # же и по той же причине.
           resources:
             requests:
               cpu: 50m
-              memory: 128Mi
+              memory: 256Mi
             limits:
               cpu: 250m
-              memory: 256Mi
+              memory: 512Mi
           securityContext:
             {{- include "tutor.securityContext" . | nindent 12 }}
