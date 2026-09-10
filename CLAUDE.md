@@ -133,6 +133,16 @@ rather than degrading it. See the comment in `helm-openclaw/values.yaml`.
   and how to render locally. For ntfy the silent version would have been a
   server with `require-login: true`, `auth-default-access: deny-all` and no
   users — one nobody can log into or publish to.
+- **ntfy: if `authUsers` is set in config, every access token must be listed in
+  `authTokens` too.** ntfy 2.28 provisions users declared in `auth-users` into
+  its `auth.db` with `provisioned=1`, and it then refuses tokens carrying
+  `provisioned=0` -- which is what `ntfy token add` produces. The symptom is a
+  flat `401` on Bearer auth while Basic auth with the password succeeds against
+  the same server, and it survives creating a brand-new token. Both are in
+  `helm-ntfy/secrets.yaml`; `.sops.yaml` encrypts `^(authUsers|authTokens)$`.
+  Found 2026-09-10, when Kuma's notification started failing with
+  `unauthorized, error=40101` and the token in the database matched the one in
+  the URL byte for byte.
 - **Never wrap an encrypted file in `{{- if }}` to hide it from Helm.** Tried
   and failed: `sops -e -i` appends its metadata block after existing trailing
   content, landing it outside the `{{- end }}`. See commit `69bd828`.
