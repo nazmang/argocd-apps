@@ -20,7 +20,7 @@ repos:
         name: SOPS files must be encrypted
         language: system
         pass_filenames: true
-        files: '^(helm-n8n/secrets\.yaml|helm-vault/auto-unseal/vault-init-secret\.yaml|helm-ansible-semaphore/semaphore/secret\.yaml|helm-openclaw/secrets\.yaml|helm-anamnestic-claw/secrets\.yaml|helm-ntfy/secrets\.yaml|helm-ntfy-alertmanager/secrets\.yaml)$'
+        files: '^(helm-n8n/secrets\.yaml|helm-vault/auto-unseal/vault-init-secret\.yaml|helm-vault/auto-unseal/vault-transit-token-secret\.yaml|helm-ansible-semaphore/semaphore/secret\.yaml|helm-openclaw/secrets\.yaml|helm-anamnestic-claw/secrets\.yaml|helm-ntfy/secrets\.yaml|helm-ntfy-alertmanager/secrets\.yaml)$'
         entry: >-
           bash -c 'rc=0; for f in "$@"; do
             if ! grep -q "^sops:" "$f"; then

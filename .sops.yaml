@@ -62,6 +62,14 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(vault-init\.yaml)$
 
+  # Token the cluster's Vault presents to the transit Vault in Swarm to unseal
+  # itself. Scoped to encrypt/decrypt on one key and nothing else, but it is
+  # still the thing that opens the cluster's Vault, so it never lands in git in
+  # the clear.
+  - path_regex: helm-vault/auto-unseal/vault-transit-token-secret\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(token)$
+
   - path_regex: helm-ansible-semaphore/semaphore/secret\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(password|email)$

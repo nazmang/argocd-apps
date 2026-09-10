@@ -47,6 +47,24 @@ server:
 
         service_registration "kubernetes" {}
 
+        # Auto-unseal against the transit Vault on dkr01. Before this, the seal
+        # was Shamir and the only thing that unsealed it was a one-shot Job that
+        # ran at install time and never again -- so every pod restart left Vault
+        # sealed until a human intervened.
+        #
+        # The token is deliberately absent here: Vault reads it from VAULT_TOKEN,
+        # injected from the ksops-managed vault-transit-token Secret, because
+        # this file is public. address/key_name/mount_path are not secret.
+        #
+        # Switching to this required `vault operator unseal -migrate` with the
+        # Shamir keys; it is not a config change alone. Those keys remain the
+        # break-glass path if the transit Vault is ever lost.
+        seal "transit" {
+          address    = "http://10.163.11.105:8200"
+          key_name   = "autounseal"
+          mount_path = "transit/"
+        }
+
   service:
     type: ClusterIP # Service type (ClusterIP means only accessible inside the cluster).
     port: 8200 # Vault API/UI port.
@@ -88,6 +106,14 @@ server:
 
     # Cluster address (used by Vault servers to communicate with each other).
     cluster_addr = "https://vault:8201"
+
+  # Only the token, and only from a Secret. VAULT_ADDR is deliberately not set
+  # here: the container's own CLI uses it to reach the local Vault, and pointing
+  # it at the transit Vault would break every `vault` command run inside the pod.
+  extraSecretEnvironmentVars:
+    - envName: VAULT_TOKEN
+      secretName: vault-transit-token
+      secretKey: token
 
   extraVolumes:
     # Mount additional Kubernetes Secrets or ConfigMaps.
