@@ -8,7 +8,32 @@ server:
     raft:
       # Enables Raft integrated storage
       enabled: true
-      # Raft storage configuration (optional, defaults are usually sufficient)
+      # THIS is the config Vault actually runs. Verified by reading
+      # /vault/config/extraconfig-from-values.hcl inside the pod: it matched the
+      # chart's default for this key exactly, not the `server.config` block
+      # further down, which the chart has no such key for and silently ignores.
+      #
+      # The only change from the chart default is uncommenting telemetry. Without
+      # it /v1/sys/metrics demands a token, the ServiceMonitor scrapes without
+      # one, and vault-internal stays down -- 403 unsealed, 503 sealed -- keeping
+      # TargetDown firing. The endpoint carries operational metrics only.
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          telemetry {
+            unauthenticated_metrics_access = "true"
+          }
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
 
   service:
     type: ClusterIP # Service type (ClusterIP means only accessible inside the cluster).
@@ -24,6 +49,13 @@ server:
     accessMode: ReadWriteOnce # PVC access mode (ReadWriteOnce is enough for Raft).
     size: 10Gi # Storage size for Vault data.
 
+  # DEAD CONFIG -- the chart has no `server.config` key and ignores this whole
+  # block. So does `server.tls` above it. That is why Vault runs with
+  # tls_disable = 1 and serves plain HTTP inside the cluster despite the TLS
+  # settings written here; externally, Cloudflare terminates TLS, which is why
+  # nothing looked wrong. Kept rather than deleted because it records the
+  # intended TLS/api_addr setup, which a real TLS setup would need to move into
+  # server.ha.raft.config above.
   config: |
     # This is the Vault server configuration in HCL format.
     ui = true
@@ -33,14 +65,6 @@ server:
       tls_cert_file = "/vault/tls/tls.crt" # Path to TLS certificate inside pod.
       tls_key_file  = "/vault/tls/tls.key" # Path to TLS private key inside pod.
 
-      # Without this, /v1/sys/metrics requires a token and the ServiceMonitor --
-      # which scrapes it unauthenticated -- gets 403. That kept TargetDown firing
-      # permanently, and once alerts actually started being delivered it would
-      # have arrived on the phone every 12 hours. The endpoint exposes operational
-      # metrics only, on a ClusterIP service, and no secret material.
-      telemetry {
-        unauthenticated_metrics_access = true
-      }
     }
 
     storage "raft" {
