@@ -41,7 +41,7 @@ creation_rules:
   # plaintext into a committed file.
   - path_regex: helm-ntfy/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(authUsers)$
+    encrypted_regex: ^(authUsers|authTokens)$
 
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
