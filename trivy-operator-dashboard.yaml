@@ -12,6 +12,18 @@ spec:
     helm:
       values: |
         replicaCount: 1
+        history:
+          distributedCache:
+            sidecar:
+              pvc:
+                # The chart defaults this to managed-csi-premium, an Azure storage
+                # class that does not exist here. The PVC sat Pending for 85 days
+                # and the volume controller retried 4963 times, keeping the pod
+                # down and four alerts firing into an Alertmanager that discards
+                # them. This is the Valkey sidecar backing the history feature's
+                # cache -- if history is not wanted, disabling history.enabled
+                # removes the volume rather than placing it.
+                storageClassName: nfs-client
         service:
           type: ClusterIP
         ingress:
