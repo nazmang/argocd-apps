@@ -33,6 +33,18 @@ server:
           path = "/vault/data"
         }
 
+        # Two separate settings are needed and they do different things. The
+        # telemetry block inside the listener above opens the endpoint without a
+        # token; this one enables the Prometheus exposition format at all.
+        # Verified against the running pod: with only the first,
+        # /v1/sys/metrics answered fine while
+        # /v1/sys/metrics?format=prometheus -- which is exactly what the
+        # ServiceMonitor requests -- returned 400.
+        telemetry {
+          prometheus_retention_time = "30s"
+          disable_hostname = true
+        }
+
         service_registration "kubernetes" {}
 
   service:
