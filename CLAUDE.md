@@ -269,14 +269,28 @@ sops, so upgrading the local binary is not urgent, but it's worth doing.
   The Shamir keys are now **recovery** keys, not unseal keys. They remain the
   break-glass path if the transit Vault is lost.
 
-  Still unaddressed, and worse than the old note implied:
-  `helm-vault/auto-unseal/vault-init.yaml` is **plaintext on disk**, not
-  SOPS-encrypted — `sops -d` on it answers "sops metadata not found". It is
-  gitignored, so it has never been committed, but it holds five recovery keys
-  and the root token in the clear. **That root token was exposed in a session
-  transcript on 2026-09-10 and should be revoked**
-  (`vault token revoke <token>` with a fresh root token, or
-  `vault operator generate-root`).
+  **There is no standing root token, on purpose.** The one that used to sit in
+  `vault-init.yaml` was exposed in a session transcript on 2026-09-10 and has
+  been revoked — verified, a lookup with it returns 403. A replacement was
+  generated from the recovery keys, used to revoke the old one, and then revoked
+  itself. Generate one when an admin operation needs it and revoke it after:
+
+      vault operator generate-root -init              # gives nonce + otp
+      vault operator generate-root -nonce=... <key>   # three of the five
+      vault operator generate-root -decode=... -otp=...
+      ... do the work ...
+      vault token revoke -self
+
+  That path is not theoretical: it was walked end to end on 2026-09-10 before
+  the old token was revoked, precisely so that revoking it could not lock anyone
+  out.
+
+  `vault-init.yaml` is **now SOPS-encrypted** (it had been plaintext on disk
+  since April despite `.sops.yaml` carrying a rule for it — gitignored, so never
+  committed, but plaintext recovery keys on a laptop are the exposure that rule
+  exists to prevent). Its duplicate `vault-init.json` held the same five keys in
+  the clear and was deleted rather than encrypted: fewer copies of the recovery
+  keys is strictly better, and nothing referenced it.
 
 - **`server.config` and `server.tls` in `helm-vault/vault-values.yaml` are dead
   config.** The chart has no such keys and ignores both. Vault actually reads
