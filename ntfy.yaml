@@ -13,6 +13,10 @@ spec:
       releaseName: ntfy
       valueFiles:
         - values.yaml
+        # Decrypted by the helm-secrets downloader plugin on argocd-repo-server.
+        # This Application MUST stay single-source: ArgoCD requires $ref at the
+        # start of a value-file string, which collides with the secrets:// prefix.
+        - secrets://secrets.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: ntfy

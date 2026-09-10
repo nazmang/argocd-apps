@@ -27,6 +27,22 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD|s3-key|s3-secret|dockerconfigjson)$
 
+  # ntfy's auth users: "username:bcrypt-hash:role" entries for ntfy's
+  # auth-users config key. The hashes are credential material -- bcrypt cost 10
+  # is respectable but it is still an offline-crackable handle on the password,
+  # and this repo is public. They sat in helm-ntfy/values.yaml in the clear from
+  # 2026-05-03 (commit 11878f6) until this migration.
+  #
+  # Only authUsers is listed. authAccess is topic ACLs, not credentials, and
+  # stays in values.yaml where it is reviewable. If a future key here does carry
+  # a secret -- upstreamAccessToken, smtpSenderPass, webPushPrivateKey,
+  # twilioAuthToken, stripeSecretKey are all in ntfy's config surface -- add it
+  # to this list BEFORE putting it in secrets.yaml, or sops writes it in
+  # plaintext into a committed file.
+  - path_regex: helm-ntfy/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(authUsers)$
+
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
   # data key is literally named "vault-init.yaml" (kubectl create secret

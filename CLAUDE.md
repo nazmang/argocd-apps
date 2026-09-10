@@ -29,9 +29,11 @@ key is `.age/age.key` — gitignored, mode 600, never commit it. Always:
 
     export SOPS_AGE_KEY_FILE="$PWD/.age/age.key"
 
-**1. helm-secrets (`helm-n8n` only).** A SOPS-encrypted Helm *values* file,
-`helm-n8n/secrets.yaml`, referenced from `n8n.yaml` as `secrets://secrets.yaml`
-and decrypted by the helm-secrets downloader plugin on `argocd-repo-server`.
+**1. helm-secrets — `helm-n8n`, `helm-openclaw`, `helm-anamnestic-claw`,
+`helm-ntfy`.** A SOPS-encrypted Helm *values* file at the chart root,
+`helm-<app>/secrets.yaml`, listed in the Application's `valueFiles` and
+decrypted by the helm-secrets downloader plugin on `argocd-repo-server`. This is
+the default mechanism for new work.
 
 **This is live and proven.** The plugin, `sops`, and the age key were already
 present on the repo-server before this migration; `docs/argocd-repo-server-helm-secrets.md`
@@ -114,6 +116,23 @@ rather than degrading it. See the comment in `helm-openclaw/values.yaml`.
 - **Never put a SOPS-encrypted file under `templates/`.** Helm renders it
   verbatim and ships ciphertext as the secret value. Values file, or chart
   root, or ksops — nothing else.
+- **A rendered config file that carries credentials goes into a Secret, not a
+  ConfigMap.** Decrypting a value out of git and then rendering it into a
+  ConfigMap moves the exposure rather than removing it: ConfigMap contents are
+  readable by anything with `get configmap` in the namespace and are shown
+  unmasked in the ArgoCD UI, while Secrets are masked. `helm-ntfy` renders its
+  whole `server.yml` as a Secret for exactly this reason — the file holds
+  `auth-users`, i.e. bcrypt password hashes. The mount is identical either way,
+  so this costs nothing; the `checksum/config` annotation just has to point at
+  the right template.
+- **A `fail` guard belongs on any chart whose secrets moved out of
+  `values.yaml`.** Once the values file no longer carries the key, a plain
+  `helm template ./helm-<app>` renders a *valid* manifest with the secret
+  missing, and the failure surfaces later as a confusing runtime symptom.
+  `helm-n8n` and `helm-ntfy` both `fail` loudly instead, naming the missing key
+  and how to render locally. For ntfy the silent version would have been a
+  server with `require-login: true`, `auth-default-access: deny-all` and no
+  users — one nobody can log into or publish to.
 - **Never wrap an encrypted file in `{{- if }}` to hide it from Helm.** Tried
   and failed: `sops -e -i` appends its metadata block after existing trailing
   content, landing it outside the `{{- end }}`. See commit `69bd828`.
@@ -123,12 +142,13 @@ rather than degrading it. See the comment in `helm-openclaw/values.yaml`.
   existing rule.
 - **The `sops-encrypted-only` hook covers the committed subset of
   `.sops.yaml`'s rules, not all of it — and that's deliberate.** `.sops.yaml`
-  has six per-path rules. The hook in `.pre-commit-config.yaml` lists five of
+  has seven per-path rules. The hook in `.pre-commit-config.yaml` lists six of
   them: `helm-n8n/secrets.yaml`,
   `helm-vault/auto-unseal/vault-init-secret.yaml`,
   `helm-ansible-semaphore/semaphore/secret.yaml`,
-  `helm-openclaw/secret-*.yaml`, `helm-anamnestic-claw/secret.yaml`. The
-  sixth rule, `helm-vault/auto-unseal/vault-init.(yaml|json)` (raw
+  `helm-openclaw/secrets.yaml`, `helm-anamnestic-claw/secrets.yaml`,
+  `helm-ntfy/secrets.yaml`. The
+  seventh rule, `helm-vault/auto-unseal/vault-init.(yaml|json)` (raw
   `vault operator init` output, encrypted at rest for safety), is
   gitignored via `helm-vault/auto-unseal/.gitignore` — it is never staged
   and never scanned, so it can never be committed in plaintext regardless of

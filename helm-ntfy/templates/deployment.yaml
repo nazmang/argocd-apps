@@ -6,13 +6,20 @@ metadata:
     {{- include "ntfy.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  # Recreate, not the default RollingUpdate. ntfy keeps cache.db and auth.db as
+  # SQLite on the RWO volume, and a rolling update would briefly run the new pod
+  # alongside the old one against the same files -- which NFS will happily allow
+  # despite ReadWriteOnce. One replica means a rollout is a short outage either
+  # way; this makes it a clean one.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "ntfy.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/config: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       labels:
         {{- include "ntfy.labels" . | nindent 8 }}
     spec:
@@ -64,8 +71,8 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: config
-          configMap:
-            name: {{ include "ntfy.fullname" . }}-config
+          secret:
+            secretName: {{ include "ntfy.fullname" . }}-config
         - name: attachments
           emptyDir: {}
         - name: data

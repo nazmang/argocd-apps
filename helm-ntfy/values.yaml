@@ -55,10 +55,15 @@ config:
   enableLogin: true
   requireLogin: true
   # Each entry: "username:bcrypt-hash:role"  (role: admin or user)
-  authUsers:
-    - "ntfyadmin:$2b$10$nU8zcFJaXQNLbonoUpbvdeamWOSVCLCIwHFgHpOtBRK3SNYqn6L9W:admin"
-    - "ntfyuser:$2b$10$ZTLooEzGr.w9xpviHtKjkuo3uFjtQ70gLP2n2TG0WZ5OaoRHjQOHm:user"
-    - "alertmgr:$2b$10$rRLRs1.Q6leDpFEUqJ5yLeJAyr6IsUQXvzGpkUbBOsMN6QxLY1pFe:user"
+  #
+  # DELIBERATELY ABSENT HERE. The bcrypt hashes are credential material and this
+  # repo is public, so authUsers lives in the SOPS-encrypted secrets.yaml at the
+  # chart root, which ntfy.yaml lists as `secrets://secrets.yaml`. Helm replaces
+  # lists rather than merging them, so defining an empty or partial authUsers
+  # here would silently override the decrypted one -- hence nothing at all.
+  #
+  # Render locally with:
+  #   helm template ntfy ./helm-ntfy -f <(sops -d helm-ntfy/secrets.yaml)
   # Each entry: "username:topic:permission"  (permission: read-write, read-only, write-only, deny-all; wildcards supported in topic)
   authAccess:
     - "ntfyuser:cloud-k8s:read-only"
