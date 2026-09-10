@@ -4,5 +4,8 @@ kind: Kustomization
 generators:
   - ./secret-generator.yaml
 
-resources:
-  - ./job.yaml
+# job.yaml is gone. It ran `vault operator unseal` with the Shamir keys, which
+# stopped being meaningful on 2026-09-10: the seal is now transit, Vault unseals
+# itself at startup, and those keys are recovery keys rather than unseal keys.
+# Git history has it if the transit seal is ever abandoned.
+resources: []

@@ -251,13 +251,41 @@ sops, so upgrading the local binary is not urgent, but it's worth doing.
   public — so those belong behind Vault/External Secrets rather than in git,
   and that decision is pending (2026-09-08).
   The equivalent gap for n8n (`renderd-minio`, `ghcr-renderd`) is closed.
-- Vault is deployed but not used as a secret backend. External Secrets +
-  Vault is the intended end state; helm-secrets is the current step. Vault
-  itself is installed from a different repository, and its auto-unseal design
-  (the current Secret-plus-Job approach vs. a Transit-based one) is an open
-  question that belongs there, not here. The plaintext `vault operator init`
-  output on the operator's laptop is still unaddressed — see
-  `helm-vault/auto-unseal/commands.md`.
+- **Vault is deployed but still not used as a secret backend.** Nothing carries
+  the agent-injector annotations and External Secrets Operator is not installed.
+  External Secrets + Vault remains the intended end state; helm-secrets is the
+  current step.
+
+  Two corrections to what this file used to say. Vault is **not** installed from
+  another repository — `vault.yaml` here is a multi-source Application pulling
+  the upstream chart plus three paths from this repo. And the auto-unseal
+  question is settled: since 2026-09-10 the seal is **transit**, backed by a
+  small Vault on dkr01 (docker repo, `docker-vault-transit`), and Vault unseals
+  itself on startup. Verified by deleting the pod and watching it come back
+  unsealed with zero restarts. The one-shot Job that preceded it ran once at
+  install time and never again, so every restart left Vault sealed until a human
+  noticed.
+
+  The Shamir keys are now **recovery** keys, not unseal keys. They remain the
+  break-glass path if the transit Vault is lost.
+
+  Still unaddressed, and worse than the old note implied:
+  `helm-vault/auto-unseal/vault-init.yaml` is **plaintext on disk**, not
+  SOPS-encrypted — `sops -d` on it answers "sops metadata not found". It is
+  gitignored, so it has never been committed, but it holds five recovery keys
+  and the root token in the clear. **That root token was exposed in a session
+  transcript on 2026-09-10 and should be revoked**
+  (`vault token revoke <token>` with a fresh root token, or
+  `vault operator generate-root`).
+
+- **`server.config` and `server.tls` in `helm-vault/vault-values.yaml` are dead
+  config.** The chart has no such keys and ignores both. Vault actually reads
+  `server.ha.raft.config`, which is why it runs with `tls_disable = 1` and
+  serves plain HTTP inside the cluster despite the TLS settings written there;
+  externally Cloudflare terminates TLS, so nothing ever looked wrong. Confirmed
+  by reading `/vault/config/extraconfig-from-values.hcl` inside the pod. The
+  block is kept and marked rather than deleted, because it records the intended
+  setup that a real TLS configuration would move into `ha.raft.config`.
 - **ArgoCD's own configuration is not in this repo.** It is Helm-managed
   (release `argocd`, chart `argo-cd 7.7.16`) with no Application here and no
   values file committed anywhere — including the helm-secrets and ksops wiring
