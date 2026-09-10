@@ -32,6 +32,15 @@ server:
       address = "0.0.0.0:8200" # Bind to all network interfaces on port 8200.
       tls_cert_file = "/vault/tls/tls.crt" # Path to TLS certificate inside pod.
       tls_key_file  = "/vault/tls/tls.key" # Path to TLS private key inside pod.
+
+      # Without this, /v1/sys/metrics requires a token and the ServiceMonitor --
+      # which scrapes it unauthenticated -- gets 403. That kept TargetDown firing
+      # permanently, and once alerts actually started being delivered it would
+      # have arrived on the phone every 12 hours. The endpoint exposes operational
+      # metrics only, on a ClusterIP service, and no secret material.
+      telemetry {
+        unauthenticated_metrics_access = true
+      }
     }
 
     storage "raft" {
