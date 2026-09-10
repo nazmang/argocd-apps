@@ -1,0 +1,79 @@
+replicaCount: 1
+
+image:
+  repository: xenrox/ntfy-alertmanager
+  tag: "1.0.1"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# ntfy-alertmanager configuration. Keys map to the scfg directives documented at
+# https://codeberg.org/xenrox/ntfy-alertmanager (config.scfg).
+#
+# Why this bridge exists at all: Alertmanager's webhook posts its own JSON and
+# offers no body templating, so pointing it straight at ntfy publishes the raw
+# payload as the message text -- verified, and unreadable on a phone. This
+# translates it into a titled, prioritised notification.
+config:
+  logLevel: info
+  logFormat: json
+
+  # One notification per alert rather than one per Alertmanager group. Groups
+  # here are small, and single mode is what enables the per-alert source button.
+  # The cache below is what stops single mode from re-sending on every repeat.
+  alertMode: single
+
+  ntfy:
+    # In-cluster address: this never leaves the cluster, so it does not depend on
+    # the Cloudflare tunnel or on ntfy.srvx.cc resolving.
+    server: http://ntfy.ntfy.svc.cluster.local
+    # Same topic Uptime Kuma publishes to, so existing subscriptions pick these
+    # up with no action on the phone. Point it at its own topic (alters* is
+    # already allowed for alertmgr) if cluster alerts should be separable.
+    topic: cloud-k8s
+    markdown: true
+    # Adds a button opening the alert's Prometheus URL. single mode only.
+    generatorUrlLabel: source
+
+  # Alert severities map to ntfy priorities. kube-prometheus-stack emits
+  # critical, warning, info and none; Watchdog carries none.
+  labels:
+    order: severity
+    severity:
+      critical:
+        priority: 5
+        tags: rotating_light
+      warning:
+        priority: 3
+        tags: warning
+      info:
+        priority: 2
+        tags: information_source
+      none:
+        priority: 1
+        tags: mag
+
+  resolved:
+    # Edit the original notification rather than sending a second one.
+    updateNotification: true
+    tags: white_check_mark
+    priority: 2
+
+  cache:
+    type: memory
+    duration: 24h
+    cleanupInterval: 1h
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 128Mi
+  requests:
+    cpu: 20m
+    memory: 32Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

@@ -43,6 +43,17 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(authUsers|authTokens)$
 
+  # ntfy-alertmanager's ntfy credential. The bridge publishes to the cloud-k8s
+  # topic, which is deny-all like every other, so without a working token every
+  # alert is refused with 401 -- the same silent nowhere the bridge exists to fix.
+  #
+  # NOTE: ntfy only accepts tokens that are also declared in helm-ntfy's
+  # authTokens (see the ntfy note in CLAUDE.md). A token added with
+  # `ntfy token add` and pasted here alone will be rejected.
+  - path_regex: helm-ntfy-alertmanager/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(ntfyAccessToken)$
+
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
   # data key is literally named "vault-init.yaml" (kubectl create secret

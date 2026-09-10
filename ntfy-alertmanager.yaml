@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ntfy-alertmanager
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/nazmang/argocd-apps.git
+    targetRevision: main
+    path: helm-ntfy-alertmanager
+    helm:
+      releaseName: ntfy-alertmanager
+      valueFiles:
+        - values.yaml
+        # Decrypted by the helm-secrets downloader plugin on argocd-repo-server.
+        # This Application MUST stay single-source: ArgoCD requires $ref at the
+        # start of a value-file string, which collides with the secrets:// prefix.
+        - secrets://secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    # Lives beside Alertmanager, which is the only thing that talks to it. The
+    # namespace is Helm-managed from the k8s repo, but Helm prunes only its own
+    # release, so these resources are safe here.
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  info:
+    - name: upstream
+      value: "https://codeberg.org/xenrox/ntfy-alertmanager"
+    - name: why
+      value: "Alertmanager webhooks post raw JSON; ntfy would publish it verbatim. This translates."
