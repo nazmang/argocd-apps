@@ -14,16 +14,36 @@ repos:
   # matching `sops -e -i` was forgotten. That is the single most likely way
   # this repo leaks, because the plaintext form of every one of these files is
   # a legitimate intermediate state.
+  # The .gitignore keeps plaintext docs out of git, but `git add -f` walks
+  # straight past it. This is the backstop: the whole point of encrypting the
+  # documentation is defeated the moment one plaintext copy lands in a public
+  # repository, and the .sops.md file beside it would still look like cover.
+  - repo: local
+    hooks:
+      - id: no-plaintext-docs
+        name: Documentation must be committed encrypted
+        language: system
+        pass_filenames: true
+        files: '^(docs/.*\.md|helm-[^/]+/(.*/)?commands\.md)$'
+        exclude: '^docs/README\.md$'
+        entry: >-
+          bash -c 'rc=0; for f in "$@"; do
+            echo "REFUSING: $f is documentation staged in PLAINTEXT."
+            echo "  Encrypt it:  sops -e --input-type binary --output-type json $f > $f.sops"
+            echo "  Then stage $f.sops instead; the plaintext is gitignored on purpose."
+            rc=1
+          done; exit $rc' --
+
   - repo: local
     hooks:
       - id: sops-encrypted-only
         name: SOPS files must be encrypted
         language: system
         pass_filenames: true
-        files: '^(helm-n8n/secrets\.yaml|helm-vault/auto-unseal/vault-init-secret\.yaml|helm-vault/auto-unseal/vault-transit-token-secret\.yaml|helm-ansible-semaphore/semaphore/secret\.yaml|helm-openclaw/secrets\.yaml|helm-anamnestic-claw/secrets\.yaml|helm-ntfy/secrets\.yaml|helm-ntfy-alertmanager/secrets\.yaml)$'
+        files: '^(helm-n8n/secrets\.yaml|helm-vault/auto-unseal/vault-init-secret\.yaml|helm-vault/auto-unseal/vault-transit-token-secret\.yaml|helm-ansible-semaphore/semaphore/secret\.yaml|helm-openclaw/secrets\.yaml|helm-anamnestic-claw/secrets\.yaml|helm-ntfy/secrets\.yaml|helm-ntfy-alertmanager/secrets\.yaml|.*\.md\.sops)$'
         entry: >-
           bash -c 'rc=0; for f in "$@"; do
-            if ! grep -q "^sops:" "$f"; then
+            if ! grep -qE "^sops:|\"sops\":" "$f"; then
               echo "REFUSING: $f is staged in PLAINTEXT (no sops: block)."
               echo "  Re-encrypt it:  SOPS_AGE_KEY_FILE=\$PWD/.age/age.key sops -e -i $f"
               rc=1

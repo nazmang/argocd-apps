@@ -197,6 +197,17 @@ rather than degrading it. See the comment in `helm-openclaw/values.yaml`.
 - **`helm-openclaw`'s `BACKEND_TOKEN` must equal `helm-anamnestic-claw`'s
   `API_BEARER_TOKEN`.** Kubernetes Secrets do not cross namespaces, so it is
   duplicated. Rotating one without the other breaks the health plugin.
+- **The documentation in `docs/` and every `commands.md` is committed
+  encrypted** (`*.md.sops`, SOPS binary mode, same age recipient). The
+  plaintext `.md` files are gitignored, so they exist on disk and not in git.
+  They hold no keys or passwords -- what they hold is a map of the
+  infrastructure, and this repository is public. Read one with
+  `sops -d --input-type json --output-type binary docs/x.md.sops > docs/x.md`,
+  write it back with the mirror-image command, and never `git add -f` the
+  plaintext: the `no-plaintext-docs` pre-commit hook exists because
+  `.gitignore` alone does not stop that. Paths named elsewhere in this file
+  (`docs/n8n-encryption-key-rotation.md`, `docs/argocd-repo-server-helm-secrets.md`,
+  the `commands.md` files) all now live under a `.sops` suffix.
 - Run `pre-commit run --all-files` before pushing.
 - Do not commit `.age/` or `.worktrees/`.
 

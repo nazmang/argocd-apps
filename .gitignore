@@ -1,2 +1,11 @@
 .age/
 .worktrees/
+
+# Documentation is committed encrypted (see .sops.yaml). The plaintext .md
+# stays on disk for reading and editing, but must never be committed -- that
+# would put the decrypted content back in a public repository and leave the
+# .sops.md beside it looking like protection.
+docs/**/*.md
+!docs/README.md
+helm-*/commands.md
+helm-*/**/commands.md

@@ -93,3 +93,22 @@ creation_rules:
   - path_regex: helm-vault/auto-unseal/vault-init\.(yaml|json)$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(unseal_keys_b64|unseal_keys_hex|recovery_keys_b64|recovery_keys_hex|root_token)$
+
+  # Documentation. Not secrets in the cryptographic sense -- no keys or
+  # passwords are in these files -- but a detailed map of the infrastructure:
+  # which host holds what, how the secret mechanisms are wired, where the
+  # break-glass paths lead. This repository is public, so the map is encrypted
+  # while the code stays readable.
+  #
+  # These are encrypted whole, as binary, rather than by key name:
+  #
+  #   sops -e --input-type binary --output-type json docs/x.md > docs/x.md.sops
+  #   sops -d --input-type json --output-type binary docs/x.md.sops > docs/x.md
+  #
+  # The plaintext .md files are gitignored so an edit cannot be committed by
+  # accident; the .sops.md files beside them are what git carries.
+  - path_regex: docs/.*\.md(\.sops)?$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+
+  - path_regex: helm-[^/]+/(.*/)?commands\.md(\.sops)?$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
