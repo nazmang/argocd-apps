@@ -167,7 +167,17 @@ config:
 
 persistence:
   enabled: true
-  storageClass: nfs-client
+  # local-path, not nfs-client. ntfy keeps cache.db and auth.db as SQLite, and
+  # SQLite on NFS is a bad pairing: it relies on POSIX advisory locks, which NFS
+  # serves slowly and unreliably. uptime-kuma hit the sharp end of that on this
+  # same storage class -- stalls that surfaced as false "Down" alerts and 413
+  # container restarts -- and moved off it the same day.
+  #
+  # The volume is node-local, so the pod is pinned to whichever node it first
+  # landed on and the data does not outlive that node's disk. auth.db holds the
+  # access tokens, so that matters more here than it did for Kuma; PVE backs up
+  # the VMs whole to external storage, which is what covers it.
+  storageClass: local-path
   accessModes:
     - ReadWriteOnce
   size: 1Gi
