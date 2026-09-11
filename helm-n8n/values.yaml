@@ -88,7 +88,15 @@ secrets: {}
 # DB_POSTGRESDB_PASSWORD lives in secrets.yaml and reaches the pod through
 # n8n-secrets, like every other secret here.
 database:
-  type: sqlite
+  # Switched from sqlite on 2026-09-11. The SQLite file had reached 1.3 GB on
+  # the nfs-client storage class, and that combination -- a single-writer
+  # embedded database doing fsync over NFS -- is why n8n kept stalling and
+  # falling over. Metrics and ten alert rules were added first; they showed the
+  # problem clearly and could not fix it.
+  #
+  # The SQLite file is deliberately left on the PVC. Rolling back is this one
+  # line, and nothing reads it while type is postgresdb.
+  type: postgresdb
   postgres:
     host: 10.164.1.105
     port: 55432
