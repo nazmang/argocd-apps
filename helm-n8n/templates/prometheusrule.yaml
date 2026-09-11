@@ -1,4 +1,5 @@
 {{- if .Values.monitoring.rules.enabled }}
+{{- $p := .Values.monitoring.rules.metricPrefix | default "" }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -36,7 +37,7 @@ spec:
           # 1.3 GB SQLite database over NFS produces. If this fires alongside
           # the baseline's SlowResponses, the cause is not capacity.
           expr: |
-            nodejs_eventloop_lag_p99_seconds{job="{{ .Release.Name }}"} > 1
+            {{ $p }}nodejs_eventloop_lag_p99_seconds{job="{{ .Release.Name }}"} > 1
           for: 10m
           labels:
             severity: warning
@@ -45,10 +46,29 @@ spec:
             summary: "n8n event loop is blocked"
             description: "Node's event loop lag stayed above one second for ten minutes."
 
+        - alert: N8nWorkflowFailures
+          # n8n has no failure counter, but it has started and success
+          # counters, and the gap between them over a window is exactly the
+          # failures. A long window and a threshold above zero on purpose:
+          # executions in flight at the edge of the window look like failures
+          # for a moment, and one broken workflow is a task, not a page.
+          expr: |
+            (
+              increase({{ $p }}workflow_started_total[1h])
+              - increase({{ $p }}workflow_success_total[1h])
+            ) > 3
+          for: 15m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "n8n workflows are failing"
+            description: "More than three executions failed in the last hour. Check the executions list for which workflow."
+
         - alert: N8nHeapNearLimit
           expr: |
-            nodejs_heap_size_used_bytes{job="{{ .Release.Name }}"}
-            / nodejs_heap_size_total_bytes{job="{{ .Release.Name }}"} > 0.9
+            {{ $p }}nodejs_heap_size_used_bytes{job="{{ .Release.Name }}"}
+            / {{ $p }}nodejs_heap_size_total_bytes{job="{{ .Release.Name }}"} > 0.9
           for: 15m
           labels:
             severity: warning

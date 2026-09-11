@@ -110,6 +110,12 @@ monitoring:
     labels:
       release: prometheus
     alertPrefix: N8n
+    # n8n prefixes every metric it publishes, including the Node.js ones from
+    # prom-client: the series is n8n_nodejs_eventloop_lag_p99_seconds, not
+    # nodejs_eventloop_lag_p99_seconds. Rules written against the unprefixed
+    # names load without complaint and never fire -- which is the failure this
+    # repo has now hit often enough to name.
+    metricPrefix: n8n_
     workloads:
       - name: n8n
         container: n8n
