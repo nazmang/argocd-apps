@@ -19,6 +19,26 @@ env:
   GENERIC_TIMEZONE: Europe/Sofia
   N8N_BASIC_AUTH_ACTIVE: "true"
 
+  # Metrics, added 2026-09-11. Until now n8n published nothing at all: when it
+  # "slowed down and fell over" the only evidence was somebody noticing. The
+  # default metrics are the ones that answer that complaint -- event loop lag
+  # says the process is stalling, heap says why.
+  #
+  # /metrics is served on N8N_PORT, so the existing Service port carries it.
+  N8N_METRICS: "true"
+  N8N_METRICS_INCLUDE_DEFAULT_METRICS: "true"
+  N8N_METRICS_INCLUDE_CACHE_METRICS: "true"
+  N8N_METRICS_INCLUDE_MESSAGE_EVENT_BUS_METRICS: "true"
+  # Per-endpoint API metrics: which call is slow, not just "something is slow".
+  N8N_METRICS_INCLUDE_API_ENDPOINTS: "true"
+  N8N_METRICS_INCLUDE_API_PATH_LABEL: "true"
+  N8N_METRICS_INCLUDE_API_METHOD_LABEL: "true"
+  N8N_METRICS_INCLUDE_API_STATUS_CODE_LABEL: "true"
+  # Workflow id as a label is deliberately OFF: it is unbounded cardinality in
+  # a Prometheus with 10 days of retention and no persistent volume. The
+  # failure counters below are per-workflow-name already.
+  N8N_METRICS_INCLUDE_WORKFLOW_ID_LABEL: "false"
+
 # Secret values live in helm-n8n/secrets.yaml — a SOPS-encrypted *values* file,
 # not a manifest. ArgoCD supplies it via `secrets://secrets.yaml` (see n8n.yaml);
 # locally, render with `-f <(sops -d helm-n8n/secrets.yaml)`.
@@ -43,6 +63,18 @@ persistence:
 service:
   type: ClusterIP
   port: 5678
+
+# Prometheus scraping. The ServiceMonitor needs the `release: prometheus` label
+# or the operator ignores it -- kube-prometheus-stack selects on that label, and
+# trivy-operator's ServiceMonitor sat unscraped for months precisely because it
+# lacked it.
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus
 
 ingress:
   enabled: true
