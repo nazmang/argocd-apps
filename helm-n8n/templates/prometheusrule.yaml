@@ -65,15 +65,20 @@ spec:
             summary: "n8n workflows are failing"
             description: "More than three executions failed in the last hour. Check the executions list for which workflow."
 
-        - alert: N8nHeapNearLimit
-          expr: |
-            {{ $p }}nodejs_heap_size_used_bytes{job="{{ .Release.Name }}"}
-            / {{ $p }}nodejs_heap_size_total_bytes{job="{{ .Release.Name }}"} > 0.9
-          for: 15m
-          labels:
-            severity: warning
-            app: {{ .Release.Name }}
-          annotations:
-            summary: "n8n heap is above 90% of its allocated size"
-            description: "Sustained high heap usage precedes both GC thrashing and an OOM kill."
+        # N8nHeapNearLimit lived here and was deleted on 2026-09-11, the same day
+        # it was written. It compared nodejs_heap_size_used_bytes against
+        # nodejs_heap_size_total_bytes -- and heap_size_total is V8's *currently
+        # allocated* heap, not a ceiling. V8 keeps it just above what is in use
+        # and grows it on demand, so the ratio sits near 0.9 by construction.
+        #
+        # Measured after it had been running a few hours: the condition was true
+        # for 89-95% of the preceding six hours, while heap against the actual
+        # container limit was 9.4% -- 202 MB used of a 2 GB limit, working set
+        # 380 MB. It was firing on a perfectly healthy process.
+        #
+        # Nothing replaces it, because the baseline rules in chart-lib already
+        # watch the thing that can actually kill the pod: MemoryNearLimit
+        # compares the container working set against its real memory limit, and
+        # OOMKilled catches the outcome. A GC-pressure rule would be the right
+        # early warning, but n8n exposes no nodejs_gc_* metric to build one on.
 {{- end }}
