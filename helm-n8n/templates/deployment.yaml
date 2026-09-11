@@ -37,6 +37,22 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
+            {{- if eq .Values.database.type "postgresdb" }}
+            - name: DB_TYPE
+              value: postgresdb
+            - name: DB_POSTGRESDB_HOST
+              value: {{ .Values.database.postgres.host | quote }}
+            - name: DB_POSTGRESDB_PORT
+              value: {{ .Values.database.postgres.port | quote }}
+            - name: DB_POSTGRESDB_DATABASE
+              value: {{ .Values.database.postgres.database | quote }}
+            - name: DB_POSTGRESDB_USER
+              value: {{ .Values.database.postgres.user | quote }}
+            - name: DB_POSTGRESDB_SCHEMA
+              value: {{ .Values.database.postgres.schema | quote }}
+            - name: DB_POSTGRESDB_SSL_ENABLED
+              value: {{ .Values.database.postgres.ssl | quote }}
+            {{- end }}
             {{- if .Values.sqliteVacuumOnStartup }}
             - name: DB_SQLITE_VACUUM_ON_STARTUP
               value: "true"

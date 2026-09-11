@@ -75,6 +75,31 @@ env:
 # rely on it.
 secrets: {}
 
+# Which database n8n uses. Switching this to postgresdb is the whole migration
+# from the chart's point of view: the deployment renders the DB_* variables and
+# n8n creates its schema on first start. The SQLite file on the PVC is left
+# untouched, so flipping back to sqlite is a complete rollback.
+#
+# The Postgres below is the pgvector/pg16 container on dkr01 that already
+# serves the tutor app -- a separate database and a separate role, created
+# 2026-09-11. Two caveats worth carrying: it is one container on one node's
+# local disk, and nothing backs it up yet.
+#
+# DB_POSTGRESDB_PASSWORD lives in secrets.yaml and reaches the pod through
+# n8n-secrets, like every other secret here.
+database:
+  type: sqlite
+  postgres:
+    host: 10.164.1.105
+    port: 55432
+    database: n8n
+    user: n8n
+    schema: public
+    # Plain TCP: this is a hop inside the private network to the node next
+    # door. If it ever leaves that network, this must become true and the
+    # server needs a certificate.
+    ssl: false
+
 # VACUUM rewrites the SQLite file, returning the space freed by pruning. It is
 # OFF by default on purpose: on a 1.36 GB database over NFS it takes minutes,
 # and it runs at startup while n8n is not yet serving. Turn it on for exactly

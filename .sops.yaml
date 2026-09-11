@@ -25,7 +25,7 @@ creation_rules:
   # the value unencrypted where it is visible in review and to gitleaks.
   - path_regex: helm-n8n/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD|s3-key|s3-secret|dockerconfigjson)$
+    encrypted_regex: ^(N8N_ENCRYPTION_KEY|N8N_BASIC_AUTH_USER|N8N_BASIC_AUTH_PASSWORD|DB_POSTGRESDB_PASSWORD|s3-key|s3-secret|dockerconfigjson)$
 
   # ntfy's auth users: "username:bcrypt-hash:role" entries for ntfy's
   # auth-users config key. The hashes are credential material -- bcrypt cost 10
