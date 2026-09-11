@@ -51,3 +51,23 @@ affinity: {}
 tolerations: []
 
 secretName: anamnestic-claw-secrets
+
+# Monitoring objects, rendered by templates/monitoring.yaml -- the canonical
+# copy from chart-lib/. See CLAUDE.md: every chart in this repo ships its own
+# ServiceMonitor and PrometheusRule, because a workload whose monitoring is
+# created by hand somewhere else is a workload that will one day be deployed
+# without it and nobody will notice.
+monitoring:
+  serviceMonitor:
+    # FastAPI with /healthz but no /metrics yet. Three lines of
+    # prometheus-fastapi-instrumentator would change that; until then there is
+    # nothing to scrape.
+    enabled: false
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: AnamnesticClaw
+    workloads:
+      - name: anamnestic-claw
+        container: anamnestic-claw

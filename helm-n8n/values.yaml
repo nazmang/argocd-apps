@@ -25,6 +25,28 @@ env:
   # says the process is stalling, heap says why.
   #
   # /metrics is served on N8N_PORT, so the existing Service port carries it.
+  # n8n sits behind ingress-nginx, which sets X-Forwarded-For. Without this
+  # Express does not trust the header, so n8n logged a ValidationError on every
+  # request and saw the proxy's address instead of the client's -- which also
+  # means rate limiting and any IP-based logic were counting one client.
+  N8N_PROXY_HOPS: "1"
+
+  # Execution history retention. Nothing pruned it, and the SQLite database
+  # reached 1.36 GB -- on NFS, where every fsync crosses the network. Measured
+  # before this: p95 response time at the ingress sat at 10 seconds.
+  #
+  # Seven days is what was asked for. Note what pruning does and does not do:
+  # it deletes rows, so new work stops piling on, but SQLite does not return
+  # freed pages to the filesystem. The file stays 1.36 GB until a VACUUM
+  # rewrites it -- see DB_SQLITE_VACUUM_ON_STARTUP below.
+  EXECUTIONS_DATA_PRUNE: "true"
+  EXECUTIONS_DATA_MAX_AGE: "168"
+
+  # A ceiling as well as an age, because a burst can put a week's worth of
+  # executions in a day. 20000 rows is roughly where this database was
+  # comfortable.
+  EXECUTIONS_DATA_PRUNE_MAX_COUNT: "20000"
+
   N8N_METRICS: "true"
   N8N_METRICS_INCLUDE_DEFAULT_METRICS: "true"
   N8N_METRICS_INCLUDE_CACHE_METRICS: "true"
@@ -53,6 +75,13 @@ env:
 # rely on it.
 secrets: {}
 
+# VACUUM rewrites the SQLite file, returning the space freed by pruning. It is
+# OFF by default on purpose: on a 1.36 GB database over NFS it takes minutes,
+# and it runs at startup while n8n is not yet serving. Turn it on for exactly
+# one deploy once pruning has had a chance to delete the old rows, watch the
+# file shrink, then turn it off again -- leaving it on makes every restart slow.
+sqliteVacuumOnStartup: false
+
 persistence:
   enabled: true
   storageClass: nfs-client
@@ -64,29 +93,34 @@ service:
   type: ClusterIP
   port: 5678
 
-# Prometheus scraping. The ServiceMonitor needs the `release: prometheus` label
-# or the operator ignores it -- kube-prometheus-stack selects on that label, and
-# trivy-operator's ServiceMonitor sat unscraped for months precisely because it
-# lacked it.
+# Monitoring objects, rendered by templates/monitoring.yaml (the canonical copy
+# from chart-lib/) and templates/prometheusrule.yaml (what is specific to n8n).
+# See CLAUDE.md: every chart in this repo ships its own.
 monitoring:
   serviceMonitor:
     enabled: true
+    port: http
+    path: /metrics
     interval: 30s
     scrapeTimeout: 10s
     labels:
       release: prometheus
   rules:
     enabled: true
-    # Same story as the ServiceMonitor: the operator's ruleSelector matches on
-    # this label, and a PrometheusRule without it is loaded by nobody and
-    # complains to no one.
     labels:
       release: prometheus
-    # p95 at the ingress. Measured baseline before any of this existed: p50
-    # 0.42s, p95 pinned at the 10s top bucket. Five seconds is therefore not an
-    # arbitrary round number -- it is comfortably above healthy behaviour and
-    # well below what users were putting up with.
-    slowResponseSeconds: 5
+    alertPrefix: N8n
+    workloads:
+      - name: n8n
+        container: n8n
+    ingress:
+      enabled: true
+      host: ktulu.srvx.cc
+      # p95 at the ingress. Measured baseline before any of this existed: p50
+      # 0.42s, p95 pinned at the 10s top bucket. Five seconds is therefore not
+      # an arbitrary round number -- it is comfortably above healthy behaviour
+      # and well below what users were putting up with.
+      slowResponseSeconds: 5
 
 ingress:
   enabled: true

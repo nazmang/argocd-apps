@@ -202,11 +202,41 @@ ingress:
   tls: []
 
 monitoring:
+  # Read by templates/service.yaml, which adds a dedicated metrics port when
+  # config.metricsListenHttp is set. Metrics currently ride the main http port.
   enabled: true
   # Port number used when config.metricsListenHttp is non-empty (e.g. ":9090" → 9090)
   metricsPort: 9090
   labels:
     release: prometheus
+
+  # The two blocks below are read by templates/monitoring.yaml, the canonical
+  # copy from chart-lib/. See CLAUDE.md: every chart here ships its own
+  # ServiceMonitor and PrometheusRule.
+  serviceMonitor:
+    enabled: true
+    # Metrics are served on the main port because config.metricsListenHttp is
+    # empty; set that and this becomes "metrics".
+    port: http
+    interval: 30s
+    scrapeTimeout: 10s
+    labels:
+      release: prometheus
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: Ntfy
+    workloads:
+      - name: ntfy
+        container: ntfy
+    ingress:
+      enabled: true
+      host: ntfy.srvx.cc
+      # ntfy holds long-polling connections open by design, so a high
+      # percentile here is ordinary traffic rather than a symptom. Only a very
+      # large threshold says anything at all.
+      slowResponseSeconds: 30
 
 resources:
   limits:

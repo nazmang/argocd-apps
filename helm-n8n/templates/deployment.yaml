@@ -37,6 +37,10 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
+            {{- if .Values.sqliteVacuumOnStartup }}
+            - name: DB_SQLITE_VACUUM_ON_STARTUP
+              value: "true"
+            {{- end }}
           {{- end }}
           volumeMounts:
             - name: data

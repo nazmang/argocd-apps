@@ -1,3 +1,27 @@
 image:
   repository: ghcr.io/nazmang/ai-language-tutor
   tag: ae01cda99865   # bump manually after each CI build; ArgoCD selfHeal picks it up on next sync
+
+# Monitoring objects, rendered by templates/monitoring.yaml -- the canonical
+# copy from chart-lib/. See CLAUDE.md: every chart in this repo ships its own
+# ServiceMonitor and PrometheusRule, because a workload whose monitoring is
+# created by hand somewhere else is a workload that will one day be deployed
+# without it and nobody will notice.
+monitoring:
+  serviceMonitor:
+    # The bots poll Telegram and expose no HTTP server at all; native-review
+    # serves an API but publishes no metrics.
+    enabled: false
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: Tutor
+    # Three deployments in one chart, which is why the template takes a list.
+    workloads:
+      - name: tutor-bot
+        container: tutor-bot
+      - name: tutor-support-bot
+        container: tutor-support-bot
+      - name: native-review
+        container: native-review

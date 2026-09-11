@@ -111,6 +111,74 @@ Secret. **Do not run `helm upgrade` against either chart now** — ArgoCD has
 `strategy: Recreate`, enabling it before that image exists takes openclaw down
 rather than degrading it. See the comment in `helm-openclaw/values.yaml`.
 
+## Every chart ships its own monitoring
+
+**A chart is not finished until it creates its own `ServiceMonitor` (when there
+is something to scrape) and its own `PrometheusRule`.** Monitoring created by
+hand, or kept in some other repository, is monitoring that will be missing the
+day the app is redeployed from scratch — and nobody finds out, because the
+symptom of a missing alert is silence. That is not hypothetical here: ntfy's
+ServiceMonitor lived only in the cluster for a while, and trivy-operator's
+exists but carries no `release: prometheus` label, so it has been ignored by the
+operator for months while looking perfectly healthy in `kubectl get`.
+
+The same rule covers **application settings**: environment variables, flags and
+tuning go in `values.yaml`, never applied to a live object with `kubectl set env`
+or `kubectl patch`. ArgoCD has `selfHeal: true`, so a hand-applied variable is
+reverted on the next sync at best, and survives only until the workload is
+recreated at worst — leaving an app that behaves differently from what the repo
+says, with no record of why.
+
+### How
+
+`chart-lib/monitoring.yaml` is the canonical template. Every chart carries a
+byte-identical copy at `templates/monitoring.yaml`:
+
+    ./chart-lib/sync-monitoring.sh          # copy the canonical file into every chart
+    ./chart-lib/sync-monitoring.sh --check  # fail if a copy has drifted
+
+The `monitoring-template-in-sync` pre-commit hook runs `--check`, so a drifting
+copy cannot be committed. Edit the canonical file, never a copy.
+
+Copies rather than a Helm library chart, on purpose: a library dependency has to
+be resolved by `argocd-repo-server` at render time, and the charts here are
+deliberately self-contained — each renders with a plain `helm template <dir>`,
+no network, no `helm dependency build`. The duplication is real, and the hook is
+what keeps it honest.
+
+The template uses no chart-specific helper, so the same bytes work in any chart.
+It reads two blocks from values:
+
+| Key | What it does |
+|---|---|
+| `monitoring.serviceMonitor.enabled` | Creates a ServiceMonitor. Set `port`/`path` if the app does not serve `/metrics` on a port named `http`. |
+| `monitoring.rules.enabled` | Creates the baseline PrometheusRule. |
+| `monitoring.rules.workloads` | List of `{name, container}`. Defaults to one entry named after the release; `helm-tutor` passes three. |
+| `monitoring.rules.ingress` | `{enabled, host, slowResponseSeconds}` — adds p95 latency and 5xx alerts measured at the ingress. |
+
+**Both blocks must carry `labels: {release: prometheus}`.** The operator's
+`serviceMonitorSelector` and `ruleSelector` both match on it; an object without
+it is created successfully, ignored silently, and looks fine forever.
+
+### What the baseline covers, and what it cannot
+
+The baseline is built from kube-state-metrics and cAdvisor, so it works for an
+app that publishes nothing at all: replicas short of desired, restarts, OOM
+kills, memory approaching the limit, and — when the chart has an ingress — p95
+latency and 5xx as a user experiences them.
+
+What it cannot see is anything inside the process. `helm-n8n` is the worked
+example: the baseline gives it the four workload alerts plus the two ingress
+ones, and `templates/prometheusrule.yaml` adds only what the baseline cannot
+know — scrape failure, Node event-loop lag, heap headroom. Follow that split.
+Duplicating a baseline alert in a chart's own rule file means two notifications
+for one event and two places to change a threshold.
+
+Charts whose app exposes no metrics (`helm-openclaw`, `helm-anamnestic-claw`,
+`helm-tutor`, `helm-apprise`, `helm-ntfy-alertmanager`) set
+`serviceMonitor.enabled: false` **with a comment saying why** — the next person
+should see a decision, not an omission.
+
 ## Rules
 
 - **Never put a SOPS-encrypted file under `templates/`.** Helm renders it

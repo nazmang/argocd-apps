@@ -18,6 +18,19 @@ repos:
   # straight past it. This is the backstop: the whole point of encrypting the
   # documentation is defeated the moment one plaintext copy lands in a public
   # repository, and the .sops.md file beside it would still look like cover.
+  # chart-lib/monitoring.yaml is copied into every chart rather than pulled in
+  # as a library dependency (see CLAUDE.md for why). Copies drift the moment
+  # somebody edits one in place -- and a drifted copy is invisible: the chart
+  # still renders, the alerts are just quietly different from everyone else's.
+  - repo: local
+    hooks:
+      - id: monitoring-template-in-sync
+        name: Chart monitoring templates match chart-lib/monitoring.yaml
+        language: system
+        pass_filenames: false
+        files: '^(chart-lib/monitoring\.yaml|helm-[^/]+/templates/monitoring\.yaml)$'
+        entry: ./chart-lib/sync-monitoring.sh --check
+
   - repo: local
     hooks:
       - id: no-plaintext-docs

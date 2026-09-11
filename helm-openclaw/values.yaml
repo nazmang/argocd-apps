@@ -98,3 +98,22 @@ healthPlugin:
     pullPolicy: Always
   backendUrl: "http://anamnestic-claw.anamnestic-claw.svc.cluster.local:8000"
   tokenSecretName: health-plugin-token
+
+# Monitoring objects, rendered by templates/monitoring.yaml -- the canonical
+# copy from chart-lib/. See CLAUDE.md: every chart in this repo ships its own
+# ServiceMonitor and PrometheusRule, because a workload whose monitoring is
+# created by hand somewhere else is a workload that will one day be deployed
+# without it and nobody will notice.
+monitoring:
+  serviceMonitor:
+    # /metrics returns the web UI's HTML -- the SPA answers every unknown path.
+    # There is no instrumentation to scrape.
+    enabled: false
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: Openclaw
+    workloads:
+      - name: openclaw
+        container: openclaw

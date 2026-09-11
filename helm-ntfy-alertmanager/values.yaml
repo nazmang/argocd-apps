@@ -77,3 +77,20 @@ resources:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Monitoring objects, rendered by templates/monitoring.yaml -- the canonical
+# copy from chart-lib/. See CLAUDE.md: every chart in this repo ships its own
+# ServiceMonitor and PrometheusRule, because a workload whose monitoring is
+# created by hand somewhere else is a workload that will one day be deployed
+# without it and nobody will notice.
+monitoring:
+  serviceMonitor:
+    enabled: false
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: NtfyAlertmanager
+    workloads:
+      - name: ntfy-alertmanager
+        container: ntfy-alertmanager
