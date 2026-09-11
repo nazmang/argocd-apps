@@ -1,0 +1,114 @@
+{{- if .Values.monitoring.rules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "n8n.fullname" . }}
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.rules.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    # Symptoms visible from outside n8n. These work whether or not n8n itself
+    # publishes anything, and they are the ones that match the complaint that
+    # started this: "it slows down and falls over". Measured before any rule
+    # existed, over a 12-hour window: p50 0.42s, p95 and p99 both at the 10s
+    # top bucket, three 503s.
+    - name: n8n-availability
+      rules:
+        - alert: N8nDown
+          expr: |
+            up{job="{{ include "n8n.fullname" . }}"} == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "n8n is not answering scrapes"
+            description: "Prometheus cannot reach n8n's metrics endpoint. If the pod is running, n8n itself is wedged."
+
+        - alert: N8nRestarted
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace="{{ .Release.Namespace }}",container="n8n"}[15m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: "n8n restarted"
+            description: "The container restarted in the last 15 minutes. Check whether it was killed (OOM) or exited."
+
+        - alert: N8nOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{namespace="{{ .Release.Namespace }}",container="n8n",reason="OOMKilled"} == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "n8n was OOM-killed"
+            description: "The kernel killed n8n for exceeding its memory limit. Raise the limit or find what grew."
+
+    - name: n8n-latency
+      rules:
+        - alert: N8nSlowResponses
+          # Deliberately measured at the ingress rather than inside n8n: this is
+          # what a user actually experiences, and it keeps working if n8n's own
+          # metrics stop.
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(nginx_ingress_controller_request_duration_seconds_bucket{host="{{ (index .Values.ingress.hosts 0).host }}"}[10m]))
+            ) > {{ .Values.monitoring.rules.slowResponseSeconds }}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "n8n is slow: p95 above {{ .Values.monitoring.rules.slowResponseSeconds }}s"
+            description: "95th percentile response time at the ingress has been above the threshold for 10 minutes."
+
+        - alert: N8nServerErrors
+          expr: |
+            sum(rate(nginx_ingress_controller_requests{host="{{ (index .Values.ingress.hosts 0).host }}",status=~"5.."}[10m])) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "n8n is returning 5xx"
+            description: "The ingress has been serving server errors for n8n continuously for 10 minutes."
+
+    - name: n8n-process
+      rules:
+        - alert: N8nEventLoopBlocked
+          # The single most useful signal for "it hangs": Node.js is single
+          # threaded, so a blocked event loop means every request waits,
+          # including the health check. Sustained lag above a second is not
+          # load, it is something synchronous holding the thread -- which is
+          # exactly what a 1.3 GB SQLite database over NFS does.
+          expr: |
+            nodejs_eventloop_lag_p99_seconds{job="{{ include "n8n.fullname" . }}"} > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "n8n event loop is blocked (p99 {{ "{{" }} $value | humanizeDuration {{ "}}" }})"
+            description: "Node's event loop lag stayed above one second. Requests queue behind whatever is holding the loop."
+
+        - alert: N8nHeapNearLimit
+          expr: |
+            nodejs_heap_size_used_bytes{job="{{ include "n8n.fullname" . }}"}
+            / nodejs_heap_size_total_bytes{job="{{ include "n8n.fullname" . }}"} > 0.9
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "n8n heap is above 90% of its allocated size"
+            description: "Sustained high heap usage precedes both GC thrashing and an OOM kill."
+
+        - alert: N8nMemoryNearPodLimit
+          expr: |
+            container_memory_working_set_bytes{namespace="{{ .Release.Namespace }}",container="n8n"}
+            / on(namespace,pod,container) kube_pod_container_resource_limits{namespace="{{ .Release.Namespace }}",container="n8n",resource="memory"} > 0.85
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "n8n is near its memory limit"
+            description: "Working set has been above 85% of the pod limit for 15 minutes; an OOM kill is the next step."
+{{- end }}

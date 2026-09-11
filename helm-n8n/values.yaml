@@ -75,6 +75,18 @@ monitoring:
     scrapeTimeout: 10s
     labels:
       release: prometheus
+  rules:
+    enabled: true
+    # Same story as the ServiceMonitor: the operator's ruleSelector matches on
+    # this label, and a PrometheusRule without it is loaded by nobody and
+    # complains to no one.
+    labels:
+      release: prometheus
+    # p95 at the ingress. Measured baseline before any of this existed: p50
+    # 0.42s, p95 pinned at the 10s top bucket. Five seconds is therefore not an
+    # arbitrary round number -- it is comfortably above healthy behaviour and
+    # well below what users were putting up with.
+    slowResponseSeconds: 5
 
 ingress:
   enabled: true
