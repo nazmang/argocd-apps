@@ -557,10 +557,14 @@ ingress:
 #        export MINIO_ROOT_USER='minio'
 #        export MINIO_ROOT_PASSWORD='minio123'
 
-# Public ingress for the bg-coast-news-assets bucket only, so the Shotstack render
-# API (external SaaS) can fetch audio/SRT objects by URL instead of ingesting them
-# into Shotstack's own storage (which was consuming the paid plan's storage quota).
-# Routed through the same Cloudflare Tunnel as every other *.srvx.cc app (external-dns
+# Public ingress for the bg-coast-news-assets bucket. Created 2026-08-19 so the
+# Shotstack render API (external SaaS) could fetch audio/SRT by URL instead of
+# ingesting them into its own paid storage. Shotstack was removed from every
+# workflow on 2026-09-15; the host stays because two things still read it:
+# renderd, which fetches audio/, srt/ and visual/ objects by URL for every
+# render (in-cluster, but by the public URL n8n hands it), and the Telegram
+# previews the operator taps on. Anonymous access is GetObject only (bucket
+# policy, live in MinIO, not in this file). Routed through the same Cloudflare Tunnel as every other *.srvx.cc app (external-dns
 # creates the DNS record, the tunnel's existing wildcard forwards to nginx-ingress,
 # nginx routes by Host header) - no changes needed in the k8s/helm-cloudflared repo.
 extraResources:
