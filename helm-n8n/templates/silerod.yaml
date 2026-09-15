@@ -94,6 +94,10 @@ spec:
       # than duplicated - see renderd-secrets.yaml for where it comes from.
       imagePullSecrets:
         - name: ghcr-renderd
+      # No Service-derived env vars (SILEROD_PORT=tcp://... and friends): the
+      # image reads its settings from SILERO_*, which does not collide today,
+      # but renderd-http.yaml shows what happens the day it does.
+      enableServiceLinks: false
       securityContext:
         fsGroup: 65534
       {{- with $s.nodeSelector }}

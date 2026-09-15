@@ -64,6 +64,12 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-renderd
+      # Kubernetes injects one env var per Service in the namespace into every
+      # pod, named after the Service: with a Service called renderd that is
+      # RENDERD_PORT=tcp://10.233.x.x:8080 -- exactly the variable the image
+      # reads as its listen port. First start of 0.2.0 crash-looped on
+      # int("tcp://..."). The service needs DNS, not these variables.
+      enableServiceLinks: false
       # On SIGTERM the service answers 503 on /healthz, finishes the renders in
       # flight (ffmpeg timeout is 180 s) and exits 0. 240 s covers one full
       # render plus its upload; less than that and a rollout can cut a render
