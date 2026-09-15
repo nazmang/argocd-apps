@@ -1,5 +1,26 @@
+{{- define "silerod.selectorLabels" -}}
+app.kubernetes.io/name: silerod
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+{{- define "silerod.labels" -}}
+helm.sh/chart: {{ include "n8n.chart" . }}
+{{ include "silerod.selectorLabels" . }}
+app.kubernetes.io/component: silerod
+app.kubernetes.io/part-of: n8n
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
 {{- if .Values.silerod.enabled }}
 {{- $s := .Values.silerod }}
+{{/*
+  Own labels, NOT the chart's n8n.labels. Selectors in this namespace match on
+  app.kubernetes.io/name=n8n + instance=n8n: the n8n Service, and the n8n
+  ServiceMonitor. The first version of this file reused those labels and the
+  result, live for ~20 minutes on 2026-09-15, was the silerod pod registered as
+  a second endpoint of Service n8n:5678 -- every other request to the n8n UI
+  answered 404 by a TTS server -- plus Prometheus scraping silerod for
+  /metrics it does not have (N8nDown fired). name=silerod keeps it out of
+  both.
+*/}}
 # silerod: Silero TTS as an in-cluster HTTP service, the draft voice for the
 # video pipeline. Until 2026-09-15 every rework loop before the operator's
 # approval paid ElevenLabs for a voiceover that was then thrown away; the draft
@@ -23,8 +44,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: silerod-models
   labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: silerod
+    {{- include "silerod.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -40,8 +60,7 @@ kind: Service
 metadata:
   name: silerod
   labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: silerod
+    {{- include "silerod.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -50,29 +69,25 @@ spec:
       targetPort: http
       protocol: TCP
   selector:
-    {{- include "n8n.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/component: silerod
+    {{- include "silerod.selectorLabels" . | nindent 4 }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: silerod
   labels:
-    {{- include "n8n.labels" . | nindent 4 }}
-    app.kubernetes.io/component: silerod
+    {{- include "silerod.labels" . | nindent 4 }}
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      {{- include "n8n.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: silerod
+      {{- include "silerod.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "n8n.labels" . | nindent 8 }}
-        app.kubernetes.io/component: silerod
+        {{- include "silerod.labels" . | nindent 8 }}
     spec:
       # Same private ghcr.io namespace as renderd, same PAT (read:packages is
       # per account, not per package), so the pull secret is shared rather
