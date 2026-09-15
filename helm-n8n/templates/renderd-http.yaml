@@ -1,0 +1,156 @@
+{{- define "renderdHttp.selectorLabels" -}}
+app.kubernetes.io/name: renderd
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+{{- define "renderdHttp.labels" -}}
+helm.sh/chart: {{ include "n8n.chart" . }}
+{{ include "renderdHttp.selectorLabels" . }}
+app.kubernetes.io/component: renderd
+app.kubernetes.io/part-of: n8n
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+{{- if .Values.renderd.http.enabled }}
+{{- $r := .Values.renderd.http }}
+# renderd as a long-running HTTP service (image 0.2.x), replacing the
+# one-Job-per-render model that renderd-job-template.yaml / renderd-rbac.yaml /
+# renderd-quota.yaml implement. Both run side by side until 01d is cut over
+# to POST http://renderd.n8n.svc:8080 (bg-coast-news
+# docs/superpowers/specs/2026-09-15-renderd-http-service-design.md, §11): the
+# Job model stays live and untouched until that cutover has held for a week,
+# and is removed as the last step, separately.
+#
+# What the move buys: n8n no longer needs a kube-API token that can create
+# arbitrary pod specs in this namespace (the risk spelled out in
+# renderd-rbac.yaml). The service needs no kube-API rights at all.
+#
+# Own labels (name=renderd), not n8n.labels -- see the note in silerod.yaml
+# for what sharing them with the n8n Service did on 2026-09-15.
+apiVersion: v1
+kind: Service
+metadata:
+  name: renderd
+  labels:
+    {{- include "renderdHttp.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ $r.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "renderdHttp.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: renderd
+  labels:
+    {{- include "renderdHttp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # Recreate: a rollout with two renderd pods would be two ffmpeg pools
+  # competing for the same node. terminationGracePeriodSeconds below lets the
+  # old pod finish what it is rendering before the new one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "renderdHttp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "renderdHttp.labels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        - name: ghcr-renderd
+      # On SIGTERM the service answers 503 on /healthz, finishes the renders in
+      # flight (ffmpeg timeout is 180 s) and exits 0. 240 s covers one full
+      # render plus its upload; less than that and a rollout can cut a render
+      # in half that 01d then has to re-run.
+      terminationGracePeriodSeconds: 240
+      securityContext:
+        fsGroup: 65534
+      {{- with $r.nodeSelector }}
+      # Same nodes as the render Jobs, for the same reason (see
+      # renderd-job-template.yaml).
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: renderd
+          image: "{{ $r.image.repository }}:{{ $r.image.tag }}"
+          imagePullPolicy: {{ $r.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: {{ $r.port }}
+              protocol: TCP
+          env:
+            - name: RENDERD_DATA_DIR
+              value: /var/lib/renderd
+            - name: RENDERD_WORKERS
+              value: {{ $r.workers | quote }}
+            - name: RENDERD_QUEUE_MAX
+              value: {{ $r.queueMax | quote }}
+            # WORKERS x THREADS must not exceed limits.cpu, or every render
+            # spends its time throttled by the CFS quota instead of encoding.
+            - name: RENDERD_THREADS
+              value: {{ $r.threads | quote }}
+            - name: RENDERD_RESULT_TTL
+              value: {{ $r.resultTtlSeconds | quote }}
+            - name: RENDERD_FFMPEG_TIMEOUT
+              value: {{ $r.ffmpegTimeoutSeconds | quote }}
+            # For jobs with upload: true. Same service account and the same
+            # accepted debt (S3_VERIFY=false: the MinIO operator CA is not in
+            # the image) as the Job model -- see values.yaml and CLAUDE.md.
+            - name: RENDERD_S3_VERIFY
+              value: {{ $r.s3Verify | quote }}
+            - name: RENDERD_S3_ENDPOINT
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-endpoint } }
+            - name: RENDERD_S3_KEY
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-key } }
+            - name: RENDERD_S3_SECRET
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-secret } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/renderd
+            - name: tmp
+              mountPath: /tmp
+          # /healthz is 200 from the first second (nothing to warm up) and 503
+          # when ffmpeg is missing, the data dir is not writable, or the
+          # service is draining after SIGTERM. Readiness and liveness share
+          # it: a draining pod must leave the Service, and a pod that cannot
+          # write its data dir cannot render anything.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml $r.resources | nindent 12 }}
+      volumes:
+        # Work dirs and results (~4-8 MB each, TTL 1 h). Above the limit the
+        # service fails new jobs with a readable message instead of ffmpeg
+        # hitting ENOSPC halfway through.
+        - name: data
+          emptyDir:
+            sizeLimit: {{ $r.dataSize }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+{{- end }}

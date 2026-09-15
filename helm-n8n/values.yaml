@@ -157,6 +157,11 @@ monitoring:
       # No ServiceMonitor for it on purpose - there is nothing to scrape.
       - name: silerod
         container: silerod
+      # The HTTP renderd (templates/renderd-http.yaml). The container name
+      # is shared with the Job pods, so Restarting/OOMKilled cover both; the
+      # NotAvailable rule is keyed by deployment and sees only the service.
+      - name: renderd
+        container: renderd
     ingress:
       enabled: true
       host: ktulu.srvx.cc
@@ -261,6 +266,44 @@ renderd:
   # Jobs too until their TTL expires, so it must clear a realistic burst: two
   # renders per article, several articles within one TTL window.
   maxJobs: "10"
+
+  # renderd as a long-running HTTP service (templates/renderd-http.yaml),
+  # deployed NEXT TO the Job model above, not instead of it. 01d still creates
+  # Jobs; it moves to POST renderd:8080 in its own cutover, and only a week
+  # after that do the Job pieces (job template, RBAC, quota) come out. Spec:
+  # bg-coast-news docs/superpowers/specs/2026-09-15-renderd-http-service-design.md.
+  http:
+    enabled: true
+    image:
+      repository: ghcr.io/nazmang/renderd
+      # 0.2.x is the service CMD; 0.1.x is the one-shot Job. Bump on every
+      # code change, same rule as the Job template.
+      tag: "0.2.0"
+      pullPolicy: IfNotPresent
+    port: 8080
+    # ffmpeg pool and queue depth beyond it (more -> 429). Spec §6.
+    workers: 2
+    queueMax: 10
+    # x264 threads PER render. workers x threads <= limits.cpu, see template.
+    threads: 2
+    resultTtlSeconds: 3600
+    ffmpegTimeoutSeconds: 180
+    # Accepted debt, not a setting to copy -- see CLAUDE.md "Known gaps".
+    s3Verify: "false"
+    # Starting point, to be revised from a week of real renders (user's
+    # decision: empirical, not fixed up front). One Job render today: ~25 s
+    # at 2 CPU; RSS was never measured, which is the first thing to read off
+    # the "Память по контейнерам" panel.
+    resources:
+      requests:
+        cpu: "1"
+        memory: 512Mi
+      limits:
+        cpu: "4"
+        memory: 2Gi
+    dataSize: 4Gi
+    nodeSelector:
+      renderd: "allowed"
 
 # Draft text-to-speech (Silero v5_ru, CPU) for the video pipeline: the voice
 # the operator hears before approving, so ElevenLabs is paid once per video
