@@ -1,0 +1,148 @@
+{{- if .Values.silerod.enabled }}
+{{- $s := .Values.silerod }}
+# silerod: Silero TTS as an in-cluster HTTP service, the draft voice for the
+# video pipeline. Until 2026-09-15 every rework loop before the operator's
+# approval paid ElevenLabs for a voiceover that was then thrown away; the draft
+# now comes from here, free, and ElevenLabs is called once, after approval.
+# Spec: bg-coast-news docs/superpowers/specs/2026-09-15-silero-draft-tts-design.md
+# (the response is the ElevenLabs /with-timestamps shape, so n8n's consumer
+# nodes did not change). Source and image: bg-coast-news/silerod/.
+#
+# Unlike renderd this is a Deployment, not a Job: the model takes tens of
+# seconds to load and a warm process answers a 50-word request in a few
+# seconds on CPU. One replica, Recreate: the weights PVC is RWO and two model
+# processes at 1.5 GiB each during a rollout would be the wrong kind of
+# surprise on these nodes.
+#
+# No auth, on purpose. Only reachable inside the cluster, and the caller is
+# the same n8n that already holds a kube-API token for this namespace - a
+# rogue caller here can burn CPU, not leak anything (the service has no
+# secrets; the pull secret below is the only Secret it touches).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silerod-models
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: silerod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with $s.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $s.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: silerod
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: silerod
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ $s.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "n8n.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: silerod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silerod
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: silerod
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "n8n.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: silerod
+  template:
+    metadata:
+      labels:
+        {{- include "n8n.labels" . | nindent 8 }}
+        app.kubernetes.io/component: silerod
+    spec:
+      # Same private ghcr.io namespace as renderd, same PAT (read:packages is
+      # per account, not per package), so the pull secret is shared rather
+      # than duplicated - see renderd-secrets.yaml for where it comes from.
+      imagePullSecrets:
+        - name: ghcr-renderd
+      securityContext:
+        fsGroup: 65534
+      {{- with $s.nodeSelector }}
+      # Same nodes as the render Jobs, for the same reason: k8s01/k8s02 are
+      # the memory-tight ones and this pod holds 1.5-3 GiB permanently.
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: silerod
+          image: "{{ $s.image.repository }}:{{ $s.image.tag }}"
+          imagePullPolicy: {{ $s.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: {{ $s.port }}
+              protocol: TCP
+          env:
+            - name: SILERO_MODELS_DIR
+              value: /models
+            - name: TORCH_HOME
+              value: /models/torch
+            - name: SILERO_MODEL
+              value: {{ $s.model | quote }}
+            # Must not exceed limits.cpu, or torch spends the request being
+            # throttled by the CFS quota instead of synthesizing (the renderd
+            # lesson with ffmpeg threads applies unchanged).
+            - name: SILERO_THREADS
+              value: {{ $s.threads | quote }}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          # /healthz answers 503 until the model is loaded AND one warm-up
+          # phrase has been synthesized, so readiness means "will answer /tts
+          # now", not "process is up". The first start also downloads 145 MB
+          # of weights onto the PVC; the startup probe gives that five
+          # minutes before liveness is allowed to start killing the pod.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml $s.resources | nindent 12 }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: silerod-models
+{{- end }}

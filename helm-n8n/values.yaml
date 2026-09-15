@@ -152,6 +152,11 @@ monitoring:
     workloads:
       - name: n8n
         container: n8n
+      # silerod ships no metrics of its own, so the baseline is all it gets:
+      # it died, it restarts, the kernel killed it, it is about to be killed.
+      # No ServiceMonitor for it on purpose - there is nothing to scrape.
+      - name: silerod
+        container: silerod
     ingress:
       enabled: true
       host: ktulu.srvx.cc
@@ -256,3 +261,50 @@ renderd:
   # Jobs too until their TTL expires, so it must clear a realistic burst: two
   # renders per article, several articles within one TTL window.
   maxJobs: "10"
+
+# Draft text-to-speech (Silero v5_ru, CPU) for the video pipeline: the voice
+# the operator hears before approving, so ElevenLabs is paid once per video
+# instead of once per rework loop. Rendered by templates/silerod.yaml -
+# Deployment + ClusterIP Service `silerod:8080` + a PVC that holds the model
+# weights across restarts (first start downloads them; after that the pod is
+# offline-capable). Contract and design: bg-coast-news
+# docs/superpowers/specs/2026-09-15-silero-draft-tts-design.md; source and
+# image: bg-coast-news/silerod/.
+#
+# No secrets: nothing here is added to n8n-secrets or to secrets.yaml. The
+# only Secret referenced is the ghcr-renderd pull secret, shared with renderd.
+silerod:
+  enabled: true
+  image:
+    repository: ghcr.io/nazmang/silerod
+    # Bump on every code change, as with renderd: a stale tag with a new
+    # env var is a service that silently ignores its configuration.
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  port: 8080
+  # v5_ru is what was evaluated (2026-09-07); v5_5_ru exists and loads the
+  # same way if the voices are ever compared again.
+  model: v5_ru
+  # torch intra-op threads; keep equal to limits.cpu (see the comment in the
+  # template).
+  threads: 2
+  # Spec §5. Measured before this existed: nothing - the 3 GiB limit is the
+  # spec's ceiling for torch + v5_ru weights + a 48 kHz buffer, to be
+  # tightened once the pod has been watched under real requests.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1.5Gi
+    limits:
+      cpu: "2"
+      memory: 3Gi
+  persistence:
+    storageClass: nfs-client
+    # v5_ru.pt is 145 MB; 5 Gi leaves room for a second model and torch's
+    # own cache without ever thinking about it again.
+    size: 5Gi
+  # Keep it off the control-plane nodes, which are the memory-tight ones -
+  # same label the render Jobs use, applied by hand: see
+  # renderd-job-template.yaml.
+  nodeSelector:
+    renderd: "allowed"
