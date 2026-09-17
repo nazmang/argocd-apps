@@ -133,6 +133,21 @@ spec:
             summary: "inboxd handler raised an exception"
             description: "{{ "{{ $value | humanize }}" }} handler error(s) in the last 15 minutes. kubectl -n n8n logs deploy/inboxd | grep handler_error for the traceback."
 
+        - alert: InboxdFinalizeFailed
+          # A submission the bot accepted but could not complete after all
+          # retries (media fetch from Telegram kept timing out). The sender
+          # was thanked and nothing reached n8n; the group sits in the
+          # database in state failed with its file_ids, so it can be replayed.
+          expr: |
+            sum(increase(inboxd_finalize_retries_total{outcome="failed"}[1h])) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd gave up finalizing a submission"
+            description: "{{ "{{ $value | humanize }}" }} submission(s) hit the finalize retry limit in the last hour. See event=finalize in the pod log; the group can be re-queued in the database."
+
         - alert: InboxdNoMetrics
           # The PodMonitor stopped seeing the pod: the pod is gone (the
           # baseline says so too) or /metrics broke while /healthz did not.
