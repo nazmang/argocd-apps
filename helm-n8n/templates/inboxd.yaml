@@ -1,0 +1,138 @@
+{{- define "inboxd.selectorLabels" -}}
+app.kubernetes.io/name: inboxd
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+{{- define "inboxd.labels" -}}
+helm.sh/chart: {{ include "n8n.chart" . }}
+{{ include "inboxd.selectorLabels" . }}
+app.kubernetes.io/component: inboxd
+app.kubernetes.io/part-of: n8n
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+{{- if .Values.inboxd.enabled }}
+{{- $i := .Values.inboxd }}
+# inboxd: the Telegram bot that takes news submissions from the audience and
+# hands them to n8n through a webhook (bg-coast-news
+# docs/superpowers/specs/2026-09-17-inboxd-telegram-submissions-design.md;
+# source and image: bg-coast-news/inboxd/).
+#
+# No Service, on purpose: the bot long-polls api.telegram.org, nothing calls
+# it. Port 8080 exists for the probes and for Prometheus (PodMonitor below --
+# a Service only to be scraped would be a Service for nothing).
+#
+# Exactly one replica, Recreate: two pollers on one bot token split the
+# update stream between them and each sees half a conversation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inboxd
+  labels:
+    {{- include "inboxd.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "inboxd.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "inboxd.labels" . | nindent 8 }}
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/inboxd-secrets.yaml") . | sha256sum }}
+    spec:
+      imagePullSecrets:
+        - name: ghcr-renderd
+      # See renderd-http.yaml: a Service named after the app injects
+      # <APP>_PORT=tcp://... into the pod. There is no Service here, but the
+      # habit costs nothing and the failure mode cost a crash loop once.
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 65534
+      containers:
+        - name: inboxd
+          image: "{{ $i.image.repository }}:{{ $i.image.tag }}"
+          imagePullPolicy: {{ $i.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: {{ $i.port }}
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: inboxd-secrets
+          env:
+            # Where accepted submissions go. Starts as the TEMP webhook while
+            # the n8n side is being tested; the production URL replaces it
+            # here, in values -- never with kubectl set env (CLAUDE.md).
+            - name: INBOXD_N8N_WEBHOOK_URL
+              value: {{ $i.n8nWebhookUrl | quote }}
+            # Media lands in the same bucket, under inbox/, with the renderd
+            # service account and the same S3_VERIFY=false debt (CLAUDE.md).
+            - name: INBOXD_S3_VERIFY
+              value: {{ $i.s3Verify | quote }}
+            - name: INBOXD_S3_ENDPOINT
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-endpoint } }
+            - name: INBOXD_S3_KEY
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-key } }
+            - name: INBOXD_S3_SECRET
+              valueFrom: { secretKeyRef: { name: renderd-minio, key: s3-secret } }
+            {{- range $k, $v := $i.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          # /healthz: 503 until the poller is up (2-3 s), 200 after.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml $i.resources | nindent 12 }}
+      volumes:
+        # Media is streamed to a temp file before the MinIO upload.
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ $i.tmpSize }}
+{{- if $i.podMonitor.enabled }}
+---
+# PodMonitor rather than ServiceMonitor because there is no Service (above).
+# The operator selects both kinds by the same release label; without it the
+# object is created, ignored, and looks fine forever (CLAUDE.md).
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: inboxd
+  labels:
+    {{- include "inboxd.labels" . | nindent 4 }}
+    {{- with $i.podMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "inboxd.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+{{- end }}
+{{- end }}

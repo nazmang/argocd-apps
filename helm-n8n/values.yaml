@@ -162,6 +162,10 @@ monitoring:
       # NotAvailable rule is keyed by deployment and sees only the service.
       - name: renderd
         container: renderd
+      # inboxd (templates/inboxd.yaml). Its own metrics are scraped by a
+      # PodMonitor and alerted on in templates/prometheusrule-inboxd.yaml.
+      - name: inboxd
+        container: inboxd
     ingress:
       enabled: true
       host: ktulu.srvx.cc
@@ -351,3 +355,51 @@ silerod:
   # renderd-job-template.yaml.
   nodeSelector:
     renderd: "allowed"
+
+# inboxd: the Telegram bot taking news submissions from the audience, handing
+# accepted ones to n8n through a webhook. Rendered by templates/inboxd.yaml
+# (Deployment + PodMonitor), templates/inboxd-secrets.yaml (Secret from
+# inboxdSecrets in secrets.yaml) and templates/prometheusrule-inboxd.yaml.
+# Spec: bg-coast-news docs/superpowers/specs/2026-09-17-inboxd-telegram-submissions-design.md.
+#
+# State lives in Postgres: database and role `inboxd` on the same pgvector
+# container on dkr01 that serves n8n and tutor (created 2026-09-17 the same
+# way as n8n's, verified by logging in as the role). INBOXD_DB_URL carries the
+# password and is in secrets.yaml. Same caveats as for n8n: one container on
+# one node's local disk, and nothing backs it up yet.
+#
+# INBOXD_ID_SALT must never change once real submissions exist: sender ids
+# are derived from it, so a new salt makes every known sender a stranger.
+inboxd:
+  enabled: true
+  image:
+    repository: ghcr.io/nazmang/inboxd
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+  port: 8080
+  # The n8n webhook that receives accepted submissions. TEMP first, while the
+  # n8n side is tested; the production URL goes here after its publish.
+  n8nWebhookUrl: "http://n8n.n8n.svc:5678/webhook/tipline-intake"
+  # Accepted debt, not a setting to copy -- see CLAUDE.md "Known gaps".
+  s3Verify: "false"
+  # Extra non-secret env, key: value. The image's defaults cover everything
+  # not listed here (bg-coast-news/inboxd/README.md has the table).
+  env: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  tmpSize: 1Gi
+  podMonitor:
+    enabled: true
+    labels:
+      release: prometheus
+
+# Secret values for inboxd live in helm-n8n/secrets.yaml under inboxdSecrets
+# (INBOXD_BOT_TOKEN, INBOXD_N8N_TOKEN, INBOXD_ID_SALT, INBOXD_DB_URL). Left
+# empty here on purpose: templates/inboxd-secrets.yaml fails the render,
+# naming the missing keys, rather than create an empty Secret.
+inboxdSecrets: {}

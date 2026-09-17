@@ -1,0 +1,45 @@
+{{- if and .Values.inboxd.enabled .Values.inboxd.podMonitor.enabled }}
+# What the baseline (monitoring.yaml, via monitoring.rules.workloads) cannot
+# see: the bot is up, polls fine, and still nothing reaches n8n. Metric names
+# are the service's own (bg-coast-news/inboxd/README.md).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: inboxd
+  labels:
+    {{- include "inboxd.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.rules.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: inboxd
+      rules:
+        - alert: InboxdOutboxStuck
+          # Accepted submissions the bot could not deliver to the n8n webhook.
+          # The bot retries; two hours of a non-empty outbox means n8n is not
+          # taking them (workflow unpublished, token mismatch, n8n down) and
+          # the audience is being told "thanks" for nothing.
+          expr: |
+            max(inboxd_outbox_pending) > 0
+          for: 2h
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd has undelivered submissions for 2 hours"
+            description: "inboxd_outbox_pending has been above zero for two hours. The bot accepts submissions but the n8n webhook is not taking them: check the workflow is published and INBOXD_N8N_TOKEN matches what n8n verifies."
+
+        - alert: InboxdNoMetrics
+          # The PodMonitor stopped seeing the pod: the pod is gone (the
+          # baseline says so too) or /metrics broke while /healthz did not.
+          expr: |
+            absent(up{job="inboxd"} == 1)
+          for: 15m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd is not being scraped"
+            description: "No inboxd target has been up for 15 minutes."
+{{- end }}
