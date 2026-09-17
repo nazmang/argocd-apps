@@ -30,6 +30,93 @@ spec:
             summary: "inboxd has undelivered submissions for 2 hours"
             description: "inboxd_outbox_pending has been above zero for two hours. The bot accepts submissions but the n8n webhook is not taking them: check the workflow is published and INBOXD_N8N_TOKEN matches what n8n verifies."
 
+        - alert: InboxdDeliveryRejected
+          # n8n answered 401/403/404: the shared token does not match, or the
+          # webhook workflow is unpublished. OutboxStuck would say the same
+          # two hours later; this says it in fifteen minutes and names the
+          # cause. Labels carry the HTTP status.
+          expr: |
+            sum by (status) (increase(inboxd_deliveries_total{status=~"401|403|404"}[15m])) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "n8n rejects inboxd deliveries with HTTP {{ "{{ $labels.status }}" }}"
+            description: "The webhook returned {{ "{{ $labels.status }}" }} in the last 15 minutes. 401/403: INBOXD_N8N_TOKEN and the value n8n checks have diverged. 404: the tipline-intake workflow is not published. Submissions wait in the outbox meanwhile."
+
+        - alert: InboxdDeliveryFailing
+          # Nothing got through in 30 minutes while the bot kept trying:
+          # n8n down, network, 5xx. Any status counts as trying.
+          expr: |
+            sum(increase(inboxd_deliveries_total{status!~"2.."}[30m])) > 0
+            and
+            sum(increase(inboxd_deliveries_total{status=~"2.."}[30m])) == 0
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd has had no successful delivery in 30 minutes"
+            description: "Every delivery attempt in the last 30 minutes failed and none succeeded. Check n8n and the webhook; the submissions are retrying from the outbox."
+
+        - alert: InboxdBanSpike
+          # A public bot bans automatically on repeated strikes. A handful an
+          # hour is a spammer; more than that is either a wave or the
+          # anti-spam rules banning real people. Both need eyes.
+          expr: |
+            sum(increase(inboxd_bans_total[1h])) > 5
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd banned more than 5 senders in an hour"
+            description: "{{ "{{ $value | humanize }}" }} bans in the last hour (auto and operator together). Look at the ban events in the pod log before assuming it is spam."
+
+        - alert: InboxdMostSubmissionsDropped
+          # More than half of what arrives is being dropped, on a sample big
+          # enough to mean something. Either a flood of junk or a rule
+          # (stopwords, rate limits, duplicates) that is too strict.
+          expr: |
+            sum(increase(inboxd_submissions_total{result="dropped"}[1h]))
+            / sum(increase(inboxd_submissions_total[1h])) > 0.5
+            and sum(increase(inboxd_submissions_total[1h])) >= 10
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd is dropping most submissions"
+            description: "More than half of the last hour's submissions (at least 10) were dropped. inboxd_submissions_total{result=\"dropped\"} by reason says which rule: banned, rate_hour, rate_day, duplicate, stopword, empty."
+
+        - alert: InboxdSubmissionFlood
+          # Volume alone. A regional tip line sees a few submissions a day;
+          # fifty in ten minutes is a bot or a coordinated push.
+          expr: |
+            sum(increase(inboxd_submissions_total[10m])) > 50
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd received more than 50 submissions in 10 minutes"
+            description: "Abnormal volume for a tip line. Check the drop reasons and the ban counter; consider tightening the rate limits."
+
+        - alert: InboxdOpenGroupsPiling
+          # Media groups waiting for the sender to finish. They time out on
+          # their own; a pile that does not shrink for an hour is a bug in
+          # the session logic or a flood, not normal use.
+          expr: |
+            max(inboxd_open_groups) > 20
+          for: 1h
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd has more than 20 open groups for an hour"
+            description: "Open or awaiting-choice groups are not being closed. Check the pod log for session events."
+
         - alert: InboxdNoMetrics
           # The PodMonitor stopped seeing the pod: the pod is gone (the
           # baseline says so too) or /metrics broke while /healthz did not.
