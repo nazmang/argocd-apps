@@ -282,7 +282,9 @@ renderd:
       repository: ghcr.io/nazmang/renderd
       # 0.2.x is the service CMD; 0.1.x is the one-shot Job. Bump on every
       # code change, same rule as the Job template.
-      tag: "0.3.2"
+      # 0.4.0: v2 request blocks (format up to 4K UHD, blur fit, overlays,
+      # preview PNG) and /v1/capabilities. Rollback: 0.3.2.
+      tag: "0.4.0"
       pullPolicy: IfNotPresent
     port: 8080
     # ffmpeg pool and queue depth beyond it (more -> 429). Spec §6.
