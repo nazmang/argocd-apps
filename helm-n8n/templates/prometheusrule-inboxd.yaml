@@ -117,6 +117,22 @@ spec:
             summary: "inboxd has more than 20 open groups for an hour"
             description: "Open or awaiting-choice groups are not being closed. Check the pod log for session events."
 
+        - alert: InboxdHandlerErrors
+          # An exception inside a Telegram handler. The bot now answers the
+          # user "try later" and counts it; before 0.1.4 it swallowed the
+          # exception and the user saw a dead bot -- which is exactly how the
+          # INTEGER telegram_id bug surfaced on 2026-09-17. One is worth a
+          # look; the pod log carries the traceback under event=handler_error.
+          expr: |
+            sum(increase(inboxd_handler_errors_total[15m])) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: inboxd
+          annotations:
+            summary: "inboxd handler raised an exception"
+            description: "{{ "{{ $value | humanize }}" }} handler error(s) in the last 15 minutes. kubectl -n n8n logs deploy/inboxd | grep handler_error for the traceback."
+
         - alert: InboxdNoMetrics
           # The PodMonitor stopped seeing the pod: the pod is gone (the
           # baseline says so too) or /metrics broke while /healthz did not.
