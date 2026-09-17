@@ -127,6 +127,9 @@ metadata:
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
+  # Without this the job label is "<namespace>/<podmonitor>" (n8n/inboxd),
+  # which is what the first scrape showed; the rule file expects "inboxd".
+  jobLabel: app.kubernetes.io/name
   selector:
     matchLabels:
       {{- include "inboxd.selectorLabels" . | nindent 6 }}
