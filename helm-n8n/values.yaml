@@ -374,7 +374,7 @@ inboxd:
   enabled: true
   image:
     repository: ghcr.io/nazmang/inboxd
-    tag: "0.1.0"
+    tag: "0.1.1"
     pullPolicy: IfNotPresent
   port: 8080
   # The n8n webhook that receives accepted submissions. TEMP first, while the
