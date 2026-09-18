@@ -1,11 +1,18 @@
 image:
   repository: ghcr.io/openclaw/openclaw
-  # July 2026 Extended Stable line. Bumped 2026.7.1-2 -> 2026.7.33 on
-  # 2026-09-18: the Android app (2026.7.4) called sessions.observer.visibility
-  # and question.list, which this older gateway gated behind operator.admin,
-  # and the app never considered the session ready to send. Stay on 2026.7.x:
-  # health-plugin is ported to the 2026.7 plugin API.
-  tag: "2026.7.33"
+  # 2026.9.4 (current line) since 2026-09-18. The Android app (2026.7.4)
+  # speaks the 2026.9 protocol: models.list with `view`, sessions.observer.*,
+  # question.list, and full/limited pairing access. On both 2026.7.1 and
+  # 2026.7.33 those calls failed (unknown param / "missing scope:
+  # operator.admin", a scope the app never requests), so the app kept every
+  # chat message queued "until reconnect". Verified in a throwaway pod before
+  # this bump: health-plugin installs on 2026.9.4 (needs --accept-capabilities)
+  # and loads all seven tools. Two 2026.9 behaviours the bootstrap accounts for:
+  #   - `plugins install` refuses without --accept-capabilities;
+  #   - `plugins.allow` is an allowlist for EVERY plugin, bundled ones included
+  #     (["health-plugin"] left only memory-core + health-plugin enabled, no
+  #     anthropic provider, no device-pair) -- so it must stay unset.
+  tag: "2026.9.4"
   pullPolicy: IfNotPresent
 
 replicaCount: 1

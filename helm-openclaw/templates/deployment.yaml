@@ -37,9 +37,11 @@ spec:
               openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
-              # Trust the non-bundled plugin explicitly; otherwise every CLI call
-              # warns that plugins.allow is empty and the plugin auto-loads.
-              openclaw config set plugins.allow '["health-plugin"]'
+              # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
+              # every plugin, bundled providers included (see values.yaml). The
+              # 2026.7.33 bootstrap wrote ["health-plugin"] to this PVC; remove
+              # it, tolerating "already unset".
+              openclaw config unset plugins.allow || true
           volumeMounts:
             - name: data
               mountPath: /home/node/.openclaw
@@ -73,7 +75,10 @@ spec:
               #   Config validation failed: plugins: Unrecognized key: "health-plugin"
               # The original order had these the other way round, which is one
               # of the reasons this initContainer had never run successfully.
-              openclaw plugins install --force /plugin-src
+              # --accept-capabilities: 2026.9 refuses to install a plugin that
+              # declares capabilities without explicit consent (exit 1, no
+              # install) -- with strategy: Recreate that is an outage.
+              openclaw plugins install --force --accept-capabilities /plugin-src
               # Config lives at plugins.entries.<id>.config.<key> - note both
               # the "entries" and "config" levels. plugins.<id>.<key> is not a
               # valid path and is rejected by the schema.
