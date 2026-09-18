@@ -20,6 +20,38 @@ spec:
         {{- toYaml .Values.securityContext | nindent 8 }}
       automountServiceAccountToken: false
       initContainers:
+        # The nfs-client provisioner creates the PVC's subPath directories as
+        # root:root 0777. Files inside are ours (uid 1000), but 2026.9 also
+        # chmod()s ~/.openclaw itself -- `plugins install`, `doctor`, exec
+        # approvals -- and a non-owner gets EPERM, which crash-looped the
+        # plugin bootstrap on 2026-09-18. Hand the two directories to the
+        # gateway's uid once; idempotent, and the only step that needs root.
+        - name: fix-home-owner
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "FOWNER"]
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              chown {{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.fsGroup }} /home/node/.openclaw /home/node/.config/openclaw
+              chmod 700 /home/node/.openclaw
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.openclaw
+              subPath: openclaw-home
+            - name: data
+              mountPath: /home/node/.config/openclaw
+              subPath: openclaw-config
         - name: gateway-config-bootstrap
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
