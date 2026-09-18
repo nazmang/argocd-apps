@@ -31,6 +31,12 @@ spec:
             - |
               set -e
               mkdir -p /home/node/.openclaw
+              # Migrate a config written by an older gateway before touching it:
+              # 2026.9 rejects every `config set` while the file has legacy keys
+              # (first hit: meta.lastTouchedAt from 2026.7.x -> "OpenClaw config
+              # is invalid", initContainer crash-loop). Safe migrations only,
+              # no prompts; a no-op on a current config.
+              openclaw doctor --fix --non-interactive </dev/null
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan
               openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
