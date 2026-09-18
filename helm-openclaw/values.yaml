@@ -27,6 +27,9 @@ env:
   # it the code falls through to the last resolution step, `gateway.bind=lan`,
   # and embeds the pod IP (`ws://10.233.x.x:18789`) -- unreachable from a phone.
   # Must be wss:// -- pairing fails closed on public ws:// (2026-09-18).
+  # The bundled device-pair plugin is disabled by default; the bootstrap
+  # enables it, otherwise every CLI call warns "plugin disabled but config is
+  # present" (the QR still honoured the URL, but the config belongs to it).
   publicUrl: "wss://openclaw.srvx.cc"
 
 resources:

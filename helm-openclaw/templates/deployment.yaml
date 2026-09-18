@@ -34,6 +34,7 @@ spec:
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan
               openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
+              openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
           volumeMounts:
             - name: data
