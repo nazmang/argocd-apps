@@ -22,6 +22,12 @@ env:
   # no working env var for this setting (OPENCLAW_ALLOWED_ORIGINS is not
   # read by the gateway; see commands.md)
   allowedOrigins: "https://openclaw.srvx.cc"
+  # Advertised in mobile pairing setup codes / QR (Control UI "Pair device",
+  # `openclaw qr`) via `plugins.entries.device-pair.config.publicUrl`. Without
+  # it the code falls through to the last resolution step, `gateway.bind=lan`,
+  # and embeds the pod IP (`ws://10.233.x.x:18789`) -- unreachable from a phone.
+  # Must be wss:// -- pairing fails closed on public ws:// (2026-09-18).
+  publicUrl: "wss://openclaw.srvx.cc"
 
 resources:
   limits:
