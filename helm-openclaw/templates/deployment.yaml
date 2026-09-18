@@ -88,6 +88,7 @@ spec:
               openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
+              openclaw config set gateway.trustedProxies '{{ .Values.env.trustedProxies }}'
               # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
               # every plugin, bundled providers included (see values.yaml). The
               # 2026.7.33 bootstrap wrote ["health-plugin"] to this PVC; remove

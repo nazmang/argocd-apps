@@ -48,6 +48,15 @@ env:
   # key, so `openclaw models status` showed the stock placeholder openai/gpt-5.5
   # with zero providers and the agent could not answer at all.
   model: "anthropic/claude-sonnet-5"
+  # gateway.trustedProxies. 2026.9 answers 403 {"type":"proxy_attribution_required"}
+  # to every request that carries X-Forwarded-* headers from an address not
+  # listed here -- which is all of them, since everything arrives through
+  # ingress-nginx. Found 2026-09-18 right after the 2026.9.4 bump: the Android
+  # app and the browser both got 403 on "/", /healthz (no forwarded headers)
+  # still 200. Kept to the cluster's pod subnet (kubespray podSubnet), where
+  # ingress-nginx lives; nothing outside the cluster can present itself from
+  # these addresses.
+  trustedProxies: '["10.233.64.0/18"]'
 
 resources:
   limits:
