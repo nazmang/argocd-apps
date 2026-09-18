@@ -37,6 +37,9 @@ spec:
               openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
+              # Trust the non-bundled plugin explicitly; otherwise every CLI call
+              # warns that plugins.allow is empty and the plugin auto-loads.
+              openclaw config set plugins.allow '["health-plugin"]'
           volumeMounts:
             - name: data
               mountPath: /home/node/.openclaw

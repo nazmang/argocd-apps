@@ -1,6 +1,11 @@
 image:
   repository: ghcr.io/openclaw/openclaw
-  tag: "2026.7.1-2"
+  # July 2026 Extended Stable line. Bumped 2026.7.1-2 -> 2026.7.33 on
+  # 2026-09-18: the Android app (2026.7.4) called sessions.observer.visibility
+  # and question.list, which this older gateway gated behind operator.admin,
+  # and the app never considered the session ready to send. Stay on 2026.7.x:
+  # health-plugin is ported to the 2026.7 plugin API.
+  tag: "2026.7.33"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
