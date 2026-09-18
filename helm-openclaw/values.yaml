@@ -135,6 +135,12 @@ healthPlugin:
     # digest on every pod start, or plugin updates can silently never land.
     pullPolicy: Always
   backendUrl: "http://anamnestic-claw.anamnestic-claw.svc.cluster.local:8000"
+  # Sent by the plugin as X-User-Id on every backend call. Single-user
+  # stopgap until identity comes from the tool-call context (spec
+  # 2026-09-18-mood-checkin-and-history-design.md §2). MUST equal the value
+  # migration 0002 backfilled existing weight rows to, or history stops
+  # seeing them.
+  defaultUserId: "legacy-single-user"
   tokenSecretName: health-plugin-token
 
 # Monitoring objects, rendered by templates/monitoring.yaml -- the canonical

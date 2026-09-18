@@ -131,6 +131,8 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.healthPlugin.tokenSecretName }}
                   key: BACKEND_TOKEN
+            - name: DEFAULT_USER_ID
+              value: {{ .Values.healthPlugin.defaultUserId | quote }}
           command:
             - sh
             - -c
@@ -152,6 +154,7 @@ spec:
               # valid path and is rejected by the schema.
               openclaw config set plugins.entries.health-plugin.config.backendUrl "$BACKEND_URL"
               openclaw config set plugins.entries.health-plugin.config.backendToken "$BACKEND_TOKEN"
+              openclaw config set plugins.entries.health-plugin.config.defaultUserId "$DEFAULT_USER_ID"
               openclaw config set plugins.entries.health-plugin.enabled true
           volumeMounts:
             - name: plugin-src
