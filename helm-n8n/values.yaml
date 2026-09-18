@@ -377,7 +377,7 @@ inboxd:
   image:
     repository: ghcr.io/nazmang/inboxd
     # 0.1.2 is broken (SyntaxError on import) -- never deploy it.
-    tag: "0.1.5"
+    tag: "0.1.6"
     pullPolicy: IfNotPresent
   port: 8080
   # The n8n webhook that receives accepted submissions. TEMP first, while the
