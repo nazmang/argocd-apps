@@ -68,9 +68,25 @@ spec:
               mountPath: /home/node/.config/openclaw
               subPath: openclaw-config
 {{- if .Values.healthPlugin.enabled }}
-        - name: health-plugin-bootstrap
+        # The plugin image only supplies the plugin's files. It bundles its own
+        # (older) openclaw CLI, and running the install with that CLI broke on
+        # the 2026.9.4 upgrade twice over: it does not know
+        # --accept-capabilities, and it cannot open the state database once the
+        # gateway's own bootstrap has migrated it (schema 17 vs 1). So: copy the
+        # source out here, and let the gateway's CLI -- same image, same
+        # version -- do the install in the next initContainer.
+        - name: health-plugin-src
           image: "{{ .Values.healthPlugin.image.repository }}:{{ .Values.healthPlugin.image.tag }}"
           imagePullPolicy: {{ .Values.healthPlugin.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command: ["sh", "-c", "cp -r /plugin-src/. /work/plugin-src/"]
+          volumeMounts:
+            - name: plugin-src
+              mountPath: /work/plugin-src
+        - name: health-plugin-bootstrap
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           env:
@@ -96,7 +112,7 @@ spec:
               # --accept-capabilities: 2026.9 refuses to install a plugin that
               # declares capabilities without explicit consent (exit 1, no
               # install) -- with strategy: Recreate that is an outage.
-              openclaw plugins install --force --accept-capabilities /plugin-src
+              openclaw plugins install --force --accept-capabilities /work/plugin-src
               # Config lives at plugins.entries.<id>.config.<key> - note both
               # the "entries" and "config" levels. plugins.<id>.<key> is not a
               # valid path and is rejected by the schema.
@@ -104,6 +120,8 @@ spec:
               openclaw config set plugins.entries.health-plugin.config.backendToken "$BACKEND_TOKEN"
               openclaw config set plugins.entries.health-plugin.enabled true
           volumeMounts:
+            - name: plugin-src
+              mountPath: /work/plugin-src
             - name: data
               mountPath: /home/node/.openclaw
               subPath: openclaw-home
@@ -158,6 +176,10 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "openclaw.fullname" . }}
+{{- if .Values.healthPlugin.enabled }}
+        - name: plugin-src
+          emptyDir: {}
+{{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
