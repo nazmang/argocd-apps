@@ -80,7 +80,7 @@ creation_rules:
 
   - path_regex: helm-openclaw/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|BACKEND_TOKEN)$
+    encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|BACKEND_TOKEN|ANTHROPIC_API_KEY)$
 
   - path_regex: helm-anamnestic-claw/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"

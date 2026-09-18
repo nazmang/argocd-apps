@@ -31,6 +31,11 @@ env:
   # enables it, otherwise every CLI call warns "plugin disabled but config is
   # present" (the QR still honoured the URL, but the config belongs to it).
   publicUrl: "wss://openclaw.srvx.cc"
+  # Default agent model, `provider/model`. Written to agents.defaults.model.primary
+  # by the bootstrap. Until 2026-09-18 nothing was set and no provider had a
+  # key, so `openclaw models status` showed the stock placeholder openai/gpt-5.5
+  # with zero providers and the agent could not answer at all.
+  model: "anthropic/claude-sonnet-5"
 
 resources:
   limits:
@@ -73,6 +78,8 @@ ingress:
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
 
 gatewayTokenSecretName: openclaw-gateway-token
+# Provider API keys (ANTHROPIC_API_KEY) -- see templates/secrets.yaml.
+modelKeysSecretName: openclaw-model-keys
 
 healthPlugin:
   # Enabled 2026-09-08, after the plugin was ported to the OpenClaw 2026.7.x

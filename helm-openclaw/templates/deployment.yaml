@@ -36,6 +36,7 @@ spec:
               openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
               openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
+              openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
           volumeMounts:
             - name: data
               mountPath: /home/node/.openclaw
@@ -94,6 +95,9 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ .Values.modelKeysSecretName }}
           env:
             - name: OPENCLAW_TZ
               value: {{ .Values.env.tz | quote }}
