@@ -34,9 +34,21 @@ spec:
               # Migrate a config written by an older gateway before touching it:
               # 2026.9 rejects every `config set` while the file has legacy keys
               # (first hit: meta.lastTouchedAt from 2026.7.x -> "OpenClaw config
-              # is invalid", initContainer crash-loop). Safe migrations only,
-              # no prompts; a no-op on a current config.
-              openclaw doctor --fix --non-interactive </dev/null
+              # is invalid", initContainer crash-loop). `openclaw doctor --fix`
+              # is the documented repair, but it fchmod()s files on the PVC and
+              # the nfs-client volume answers EPERM (same reason exec approvals
+              # fail on this install), so the one offending key is stripped
+              # directly. No-op when the file or the key is absent.
+              node -e '
+                const fs = require("fs");
+                const f = process.env.HOME + "/.openclaw/openclaw.json";
+                if (!fs.existsSync(f)) process.exit(0);
+                const c = JSON.parse(fs.readFileSync(f, "utf8"));
+                if (c.meta && "lastTouchedAt" in c.meta) {
+                  delete c.meta.lastTouchedAt;
+                  fs.writeFileSync(f, JSON.stringify(c, null, 2));
+                  console.log("stripped legacy meta.lastTouchedAt");
+                }'
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan
               openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
