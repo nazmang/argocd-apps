@@ -54,10 +54,11 @@ ingress:
   host: openclaw.srvx.cc
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/auth-type: basic
-    # must match secret-basic-auth.yaml's metadata.name
-    nginx.ingress.kubernetes.io/auth-secret: openclaw-basic-auth
-    nginx.ingress.kubernetes.io/auth-realm: "OpenClaw Gateway"
+    # No nginx Basic Auth in front of the gateway any more (owner's decision,
+    # 2026-09-18): the browser prompt doubled up with OpenClaw's own
+    # authentication -- gateway token plus device pairing -- and that layer is
+    # now the only perimeter on this public host. If a second layer is wanted
+    # again, prefer Cloudflare Access over auth-type: basic.
     external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
     external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
