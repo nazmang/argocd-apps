@@ -67,10 +67,10 @@ spec:
               # 2026.9 rejects every `config set` while the file has legacy keys
               # (first hit: meta.lastTouchedAt from 2026.7.x -> "OpenClaw config
               # is invalid", initContainer crash-loop). `openclaw doctor --fix`
-              # is the documented repair, but it fchmod()s files on the PVC and
-              # the nfs-client volume answers EPERM (same reason exec approvals
-              # fail on this install), so the one offending key is stripped
-              # directly. No-op when the file or the key is absent.
+              # refuses to even start on that key, so strip it first; then let
+              # doctor run the remaining migrations (session store, state db)
+              # that the gateway insists on before it will boot. Both are
+              # no-ops on a current config.
               node -e '
                 const fs = require("fs");
                 const f = process.env.HOME + "/.openclaw/openclaw.json";
@@ -81,6 +81,7 @@ spec:
                   fs.writeFileSync(f, JSON.stringify(c, null, 2));
                   console.log("stripped legacy meta.lastTouchedAt");
                 }'
+              openclaw doctor --fix --non-interactive </dev/null
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan
               openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
