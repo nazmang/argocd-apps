@@ -89,6 +89,8 @@ spec:
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
               openclaw config set gateway.trustedProxies '{{ .Values.env.trustedProxies }}'
+              openclaw config set models.mode merge
+              openclaw config set models.providers.deepseek --strict-json '{{ dict "baseUrl" .Values.env.deepseek.baseUrl "api" "openai-completions" "apiKey" "${DEEPSEEK_API_KEY}" "models" .Values.env.deepseek.models | toJson }}'
               # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
               # every plugin, bundled providers included (see values.yaml). The
               # 2026.7.33 bootstrap wrote ["health-plugin"] to this PVC; remove
