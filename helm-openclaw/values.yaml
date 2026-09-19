@@ -61,10 +61,15 @@ env:
 resources:
   limits:
     cpu: "1"
-    memory: 1Gi
+    # 1Gi -> 2Gi on 2026-09-19. On 2026.9.4 the gateway idles at 350-560 MiB
+    # with 14 plugins loaded and warns itself at rss 512 MiB; the first cron
+    # agent turn with a retry (weight-reminder, 09:00 UTC) went from ~380 MiB
+    # past 1Gi in twelve seconds and was OOMKilled. One event, but the
+    # headroom was the problem, not the job.
+    memory: 2Gi
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 768Mi
 
 securityContext:
   runAsNonRoot: true
