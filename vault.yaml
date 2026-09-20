@@ -31,3 +31,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  # vault-agent-injector writes its own CA into the webhook at runtime; the
+  # chart ships it empty, so the object was permanently OutOfSync and
+  # selfHeal resynced it every few minutes (2026-09-20).
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
