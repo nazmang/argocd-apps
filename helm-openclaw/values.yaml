@@ -75,6 +75,17 @@ env:
   # ingress-nginx lives; nothing outside the cluster can present itself from
   # these addresses.
   trustedProxies: '["10.233.64.0/18"]'
+  # Voice (2026-09-21). The Android app's dictation / Talk / voice notes all
+  # need a speech provider on the gateway -- on-device recognition was
+  # unavailable on the owner's Android 17 beta, and Anthropic/DeepSeek do not
+  # handle audio. OpenAI covers every path in one key: Talk provider (TTS via
+  # talk.speak), realtime Talk over the gateway relay (the only realtime mode
+  # Android supports), voice-note transcription (tools.media.audio) and TTS.
+  # The key is OPENAI_API_KEY in openclaw-model-keys. speechLocale is the
+  # recognition locale pushed to device nodes.
+  voice:
+    speechLocale: "ru-RU"
+    audioLanguage: "ru"
 
 resources:
   limits:

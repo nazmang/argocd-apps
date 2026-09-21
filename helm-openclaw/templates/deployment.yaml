@@ -89,6 +89,15 @@ spec:
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
               openclaw config set gateway.trustedProxies '{{ .Values.env.trustedProxies }}'
+              openclaw config set talk.provider openai
+              openclaw config set talk.speechLocale '{{ .Values.env.voice.speechLocale }}'
+              openclaw config set talk.realtime.provider openai
+              openclaw config set talk.realtime.mode realtime
+              openclaw config set talk.realtime.transport gateway-relay
+              openclaw config set tools.media.audio.enabled true
+              openclaw config set tools.media.audio.language '{{ .Values.env.voice.audioLanguage }}'
+              openclaw config set tts.enabled true
+              openclaw config set tts.provider openai
               openclaw config set models.mode merge
               openclaw config set models.providers.deepseek --strict-json '{{ dict "baseUrl" .Values.env.deepseek.baseUrl "api" "openai-completions" "apiKey" "${DEEPSEEK_API_KEY}" "models" .Values.env.deepseek.models | toJson }}'
               # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
