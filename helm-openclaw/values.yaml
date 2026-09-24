@@ -88,11 +88,18 @@ env:
     audioLanguage: "ru"
     # Android switches from native (on-device) speech to the gateway relay only
     # when talk.catalog reports the realtime group ready, and that needs an
-    # advertised GPT-Live model. `gpt-live-1` is the public API route (Platform
-    # key, which is what OPENAI_API_KEY is); `gpt-live-1-codex` is the Codex
-    # route. Without this the phone kept falling back to on-device recognition,
-    # which is unavailable on the owner's Android 17 beta (2026-09-24).
-    realtimeModel: "gpt-live-1"
+    # advertised realtime model. Published routes are gpt-live-1,
+    # gpt-live-1-codex, gpt-realtime-2.1 and gpt-realtime-2.1-mini;
+    # gpt-realtime-2.1 is the one this account's key actually lists in
+    # /v1/models (gpt-live-1 is not), so it is the safe pick here.
+    realtimeModel: "gpt-realtime-2.1"
+    # Talk's speech OUTPUT provider. Valid ids are elevenlabs, mlx and system --
+    # OpenAI is explicitly NOT a Talk provider (it registers speech synthesis
+    # for the separate `tts` surface, which is why tts.provider below is
+    # openai). The schema takes any string, so "openai" here validated fine and
+    # did nothing; `system` uses the phone's own TTS, no extra key. Corrected
+    # 2026-09-24 after reading docs.openclaw.ai/nodes/talk.
+    talkProvider: "system"
     # tools.media.audio only says "transcribe voice notes"; WHAT transcribes
     # them comes from tools.media.models, and that list was empty -- `openclaw
     # models list` showed no audio-capable model at all, so a voice note had

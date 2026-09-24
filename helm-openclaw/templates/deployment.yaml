@@ -89,7 +89,7 @@ spec:
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
               openclaw config set gateway.trustedProxies '{{ .Values.env.trustedProxies }}'
-              openclaw config set talk.provider openai
+              openclaw config set talk.provider '{{ .Values.env.voice.talkProvider }}'
               openclaw config set talk.speechLocale '{{ .Values.env.voice.speechLocale }}'
               openclaw config set talk.realtime.provider openai
               openclaw config set talk.realtime.mode realtime
