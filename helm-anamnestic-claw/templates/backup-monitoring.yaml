@@ -25,8 +25,8 @@ spec:
       rules:
         - alert: {{ .Values.monitoring.rules.alertPrefix }}BackupStale
           expr: |
-            (time() - max(kube_cronjob_status_last_successful_time{cronjob="{{ include "anamnesticClaw.fullname" . }}-backup"}) > {{ mul .Values.backup.staleAfterHours 3600 }})
-            or absent(kube_cronjob_status_last_successful_time{cronjob="{{ include "anamnesticClaw.fullname" . }}-backup"})
+            (time() - max(kube_cronjob_status_last_successful_time{namespace="{{ .Release.Namespace }}", cronjob="{{ include "anamnesticClaw.fullname" . }}-backup"}) > {{ mul .Values.backup.staleAfterHours 3600 }})
+            or absent(kube_cronjob_status_last_successful_time{namespace="{{ .Release.Namespace }}", cronjob="{{ include "anamnesticClaw.fullname" . }}-backup"})
           for: 15m
           labels:
             severity: warning
@@ -40,7 +40,7 @@ spec:
               этих снимков. Разбор: docs/superpowers/runbooks/2026-09-24-backup-restore.md
         - alert: {{ .Values.monitoring.rules.alertPrefix }}BackupFailing
           expr: |
-            kube_job_status_failed{job_name=~"{{ include "anamnesticClaw.fullname" . }}-backup-.*"} > 0
+            kube_job_status_failed{namespace="{{ .Release.Namespace }}", job_name=~"{{ include "anamnesticClaw.fullname" . }}-backup-.*"} > 0
           for: 5m
           labels:
             severity: warning
