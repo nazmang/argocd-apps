@@ -1,0 +1,53 @@
+{{- /*
+  Правила бэкапа держатся отдельно от templates/monitoring.yaml намеренно:
+  тот файл — байт-в-байт копия chart-lib/monitoring.yaml, и хук
+  monitoring-template-in-sync падает при любом расхождении. Общий baseline
+  не должен знать про специфику этого чарта.
+
+  Оба правила нужны вместе: первое ловит "джоб не запускался", второе —
+  "запускался и упал". Сам джоб дополнительно проверяет снимок и сверяет
+  размер залитого объекта, поэтому "зелёный джоб при пустом бакете" уронит
+  джоб и попадёт во второе правило.
+*/}}
+{{- if and .Values.backup.enabled .Values.monitoring.rules.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "anamnesticClaw.fullname" . }}-backup
+  labels:
+    {{- include "anamnesticClaw.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.rules.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: {{ include "anamnesticClaw.fullname" . }}-backup
+      rules:
+        - alert: {{ .Values.monitoring.rules.alertPrefix }}BackupStale
+          expr: |
+            (time() - max(kube_cronjob_status_last_successful_time{cronjob="{{ include "anamnesticClaw.fullname" . }}-backup"}) > {{ mul .Values.backup.staleAfterHours 3600 }})
+            or absent(kube_cronjob_status_last_successful_time{cronjob="{{ include "anamnesticClaw.fullname" . }}-backup"})
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Нет успешного бэкапа health-базы дольше {{ .Values.backup.staleAfterHours }} ч"
+            description: >-
+              CronJob {{ include "anamnesticClaw.fullname" . }}-backup не
+              отработал успешно дольше {{ .Values.backup.staleAfterHours }} часов
+              или не отрабатывал ни разу.
+              В базе лежат медицинские данные, восстанавливать их неоткуда, кроме
+              этих снимков. Разбор: docs/superpowers/runbooks/2026-09-24-backup-restore.md
+        - alert: {{ .Values.monitoring.rules.alertPrefix }}BackupFailing
+          expr: |
+            kube_job_status_failed{job_name=~"{{ include "anamnesticClaw.fullname" . }}-backup-.*"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Джоб бэкапа health-базы падает"
+            description: >-
+              Джоб бэкапа завершился с ошибкой. Смотреть логи обоих контейнеров:
+              kubectl -n {{ .Release.Namespace }} logs job/<имя> -c snapshot
+              kubectl -n {{ .Release.Namespace }} logs job/<имя> -c upload
+{{- end }}
