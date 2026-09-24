@@ -93,6 +93,19 @@ env:
     # route. Without this the phone kept falling back to on-device recognition,
     # which is unavailable on the owner's Android 17 beta (2026-09-24).
     realtimeModel: "gpt-live-1"
+    # tools.media.audio only says "transcribe voice notes"; WHAT transcribes
+    # them comes from tools.media.models, and that list was empty -- `openclaw
+    # models list` showed no audio-capable model at all, so a voice note had
+    # nowhere to go (2026-09-24). gpt-4o-mini-transcribe is the cheap default,
+    # whisper-1 the fallback; both verified present on this account's key.
+    audioModels:
+      - provider: openai
+        model: gpt-4o-mini-transcribe
+        capabilities: [audio]
+      - provider: openai
+        model: whisper-1
+        capabilities: [audio]
+    audioPreferredModel: "openai/gpt-4o-mini-transcribe"
 
 resources:
   limits:
