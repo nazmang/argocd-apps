@@ -56,16 +56,26 @@ env:
   # (V3) and deepseek/deepseek-reasoner (R1); primary stays env.model.
   deepseek:
     baseUrl: "https://api.deepseek.com"
+    # Model ids and limits taken from GET https://api.deepseek.com/models with
+    # this account's key on 2026-09-24, not from memory: the previous entries
+    # (deepseek-chat "V3" / deepseek-reasoner "R1") were names I assumed, and
+    # neither id appears in the catalog any more -- deepseek-chat still answers
+    # as a legacy alias, deepseek-reasoner was never verified. Both current
+    # models reason by default and bill reasoning tokens (a one-word reply cost
+    # 76 and 184 reasoning tokens), so a small maxTokens budget returns empty
+    # content: keep maxTokens generous.
     models:
-      - id: deepseek-chat
-        name: DeepSeek V3
-        contextWindow: 128000
-        maxTokens: 8192
-      - id: deepseek-reasoner
-        name: DeepSeek R1
+      - id: deepseek-flash
+        name: DeepSeek V4.1 Flash
         reasoning: true
-        contextWindow: 128000
-        maxTokens: 8192
+        input: [text, image]
+        contextWindow: 1048576
+        maxTokens: 393216
+      - id: deepseek-v4-pro
+        name: DeepSeek V4 Pro
+        reasoning: true
+        contextWindow: 1048576
+        maxTokens: 393216
   # gateway.trustedProxies. 2026.9 answers 403 {"type":"proxy_attribution_required"}
   # to every request that carries X-Forwarded-* headers from an address not
   # listed here -- which is all of them, since everything arrives through
