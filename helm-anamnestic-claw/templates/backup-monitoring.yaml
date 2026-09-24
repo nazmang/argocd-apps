@@ -47,7 +47,13 @@ spec:
           annotations:
             summary: "Джоб бэкапа health-базы падает"
             description: >-
-              Джоб бэкапа завершился с ошибкой. Смотреть логи обоих контейнеров:
+              Джоб бэкапа завершился с ошибкой. Найти имя упавшего джоба:
+              kubectl -n {{ .Release.Namespace }} get jobs | grep {{ include "anamnesticClaw.fullname" . }}-backup
+              Затем логи обоих контейнеров:
               kubectl -n {{ .Release.Namespace }} logs job/<имя> -c snapshot
               kubectl -n {{ .Release.Namespace }} logs job/<имя> -c upload
+              Этот алерт сам не гаснет: kube_job_status_failed остаётся истинным,
+              пока упавший Job существует, а failedJobsHistoryLimit: 3 хранит их
+              не ограничено по времени. После устранения причины погасить алерт,
+              удалив упавшие джобы: kubectl -n {{ .Release.Namespace }} delete job <имя>
 {{- end }}

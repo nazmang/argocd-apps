@@ -31,6 +31,12 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 2
+      # Без этого зависший джоб (например, Pending навсегда из-за
+      # podAffinity на под, которого сейчас нет — см. ранбук восстановления)
+      # просто паркуется и, при concurrencyPolicy: Forbid, блокирует все
+      # последующие запуски. 900s = 15 минут, с запасом над обычным
+      # временем прогона (VACUUM INTO + заливка одного файла в несколько МБ).
+      activeDeadlineSeconds: 900
       template:
         metadata:
           {{- /*
@@ -94,6 +100,12 @@ spec:
                   # файл, который выглядит целым до попытки восстановления.
                   c = sqlcipher3.connect(src)
                   c.execute('PRAGMA key = "x\'%s\'"' % key)
+                  # Считаем на исходном соединении ДО VACUUM INTO и сравниваем со
+                  # снимком ниже: "count(*) from sqlite_master >= 1" само по себе
+                  # проходит и для почти пустой базы (например, если VACUUM INTO
+                  # снял схему, но не все объекты) — сравнение с источником ловит
+                  # именно это, а не просто "файл не пустой".
+                  src_tables = c.execute("select count(*) from sqlite_master").fetchone()[0]
                   c.execute("VACUUM INTO '%s'" % out)
                   c.close()
                   # Снимок проверяется здесь, а не при восстановлении: пустой
@@ -104,8 +116,8 @@ spec:
                   tables = v.execute("select count(*) from sqlite_master").fetchone()[0]
                   v.close()
                   size = os.path.getsize(out)
-                  if tables < 1 or size < 1:
-                      raise SystemExit("bad snapshot: tables=%s bytes=%s" % (tables, size))
+                  if tables < 1 or size < 1 or tables != src_tables:
+                      raise SystemExit("bad snapshot: tables=%s (source had %s) bytes=%s" % (tables, src_tables, size))
                   print("snapshot ok: %s tables=%s bytes=%s" % (out, tables, size), flush=True)
               resources:
                 {{- toYaml .Values.resources | nindent 16 }}
@@ -143,6 +155,16 @@ spec:
                   value: {{ .Values.backup.bucket | quote }}
                 - name: AWS_FLAGS
                   value: {{ if .Values.backup.insecure }}"--no-verify-ssl"{{ else }}""{{ end }}
+                # amazon/aws-cli:2.31.15 sends CRC32 checksum trailers on PutObject by
+                # default (a newer AWS SDK behaviour); this MinIO tenant is 182 days
+                # old and builds from before ~early 2025 reject that trailer with
+                # XAmzContentChecksumMismatch / 400. Both flags fall back to the older,
+                # widely-supported behaviour (checksum only when the caller asks, MD5
+                # validation instead of the new default) so uploads succeed against it.
+                - name: AWS_REQUEST_CHECKSUM_CALCULATION
+                  value: "when_required"
+                - name: AWS_RESPONSE_CHECKSUM_VALIDATION
+                  value: "when_required"
               # У образа amazon/aws-cli entrypoint — сам `aws`, поэтому его
               # нужно переопределить на sh -c, чтобы выполнить скрипт заливки
               # и сверки размера.
