@@ -84,7 +84,7 @@ creation_rules:
 
   - path_regex: helm-anamnestic-claw/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(SQLCIPHER_KEY|API_BEARER_TOKEN)$
+    encrypted_regex: ^(SQLCIPHER_KEY|API_BEARER_TOKEN|s3-key|s3-secret)$
 
   # --- Local operator artefacts, never committed (.gitignore'd) ---
   # Vault's `operator init` output. Gitignored via
