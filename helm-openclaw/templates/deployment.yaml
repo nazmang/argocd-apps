@@ -94,6 +94,7 @@ spec:
               openclaw config set talk.realtime.provider openai
               openclaw config set talk.realtime.mode realtime
               openclaw config set talk.realtime.transport gateway-relay
+              openclaw config set talk.realtime.model '{{ .Values.env.voice.realtimeModel }}'
               openclaw config set tools.media.audio.enabled true
               openclaw config set tools.media.audio.language '{{ .Values.env.voice.audioLanguage }}'
               openclaw config set tts.enabled true

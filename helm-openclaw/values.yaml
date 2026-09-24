@@ -86,6 +86,13 @@ env:
   voice:
     speechLocale: "ru-RU"
     audioLanguage: "ru"
+    # Android switches from native (on-device) speech to the gateway relay only
+    # when talk.catalog reports the realtime group ready, and that needs an
+    # advertised GPT-Live model. `gpt-live-1` is the public API route (Platform
+    # key, which is what OPENAI_API_KEY is); `gpt-live-1-codex` is the Codex
+    # route. Without this the phone kept falling back to on-device recognition,
+    # which is unavailable on the owner's Android 17 beta (2026-09-24).
+    realtimeModel: "gpt-live-1"
 
 resources:
   limits:
