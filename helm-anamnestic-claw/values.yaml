@@ -10,6 +10,22 @@ image:
   # been a real behaviour change disguised as an ownership transfer.
   pullPolicy: Always
 
+# Бэкап БД: CronJob снимает зашифрованный снимок (VACUUM INTO) и кладёт его
+# в MinIO. Litestream здесь неприменим: он открывает базу как обычный
+# SQLite-клиент и на SQLCipher получает "file is not a database (26)", при
+# этом НЕ падая — см. спеку 2026-09-24-backups-minio-design.md §1.
+backup:
+  enabled: true
+  schedule: "0 */6 * * *"
+  bucket: anamnestic-claw-backups
+  s3ClientImage: amazon/aws-cli:2.31.15
+  # Сертификат MinIO самоподписанный. Если AWS CLI его не примет, включить true;
+  # это включает --no-verify-ssl для AWS CLI; правильное решение — смонтировать CA,
+  # это временная мера.
+  insecure: false
+  # Алерт, если успешного бэкапа не было дольше N часов (два пропущенных цикла).
+  staleAfterHours: 12
+
 replicaCount: 1
 
 service:
