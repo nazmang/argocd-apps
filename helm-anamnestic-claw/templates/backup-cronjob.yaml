@@ -1,0 +1,165 @@
+{{- /*
+  Бэкап БД: консистентный ЗАШИФРОВАННЫЙ снимок в MinIO.
+
+  Почему не Litestream (проверено эмпирически, см. спеку §1): он открывает
+  базу как обычный SQLite-клиент и пишет в неё; на SQLCipher получает
+  "file is not a database (26)" и не создаёт ни одного файла реплики, НЕ
+  падая при этом. Молчаливый отказ — худший вид отказа для бэкапа.
+
+  Почему CronJob, а не sidecar: у sidecar со sleep нет истории запусков и он
+  не виден kube-state-metrics, то есть на него нельзя повесить алерт
+  "давно не было успешного прогона" — без которого конструкция повторяет ту
+  же ловушку.
+
+  Разделение контейнеров — это §5.3 ТЗ: снимок знает SQLCIPHER_KEY и не имеет
+  доступа наружу; заливка имеет доступ наружу и не знает ключа.
+*/}}
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anamnesticClaw.fullname" . }}-backup
+  labels:
+    {{- include "anamnesticClaw.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "anamnesticClaw.labels" . | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- /*
+            PVC — ReadWriteOnce. Том на NFS и фактически смонтировался бы с
+            любого узла, но полагаться на это нельзя: джоб жёстко садится на
+            узел с подом бэкенда.
+          */}}
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      {{- include "anamnesticClaw.selectorLabels" . | nindent 22 }}
+                  topologyKey: kubernetes.io/hostname
+          initContainers:
+            - name: snapshot
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+              env:
+                - name: DATABASE_PATH
+                  value: {{ .Values.env.databasePath | quote }}
+                - name: SQLCIPHER_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.secretName }}
+                      key: SQLCIPHER_KEY
+              command:
+                - python
+                - -c
+                - |
+                  import datetime, os, sqlcipher3
+                  key = os.environ["SQLCIPHER_KEY"]
+                  src = os.environ["DATABASE_PATH"]
+                  ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+                  out = "/snapshot/health-%s.db" % ts
+                  # VACUUM INTO даёт консистентный снимок без остановки
+                  # сервиса и сохраняет шифрование: целевой файл пишется тем
+                  # же ключом. Простой cp работающей базы может дать порванный
+                  # файл, который выглядит целым до попытки восстановления.
+                  c = sqlcipher3.connect(src)
+                  c.execute('PRAGMA key = "x\'%s\'"' % key)
+                  c.execute("VACUUM INTO '%s'" % out)
+                  c.close()
+                  # Снимок проверяется здесь, а не при восстановлении: пустой
+                  # или нечитаемый файл должен уронить джоб, чтобы сработал
+                  # алерт, а не тихо уехать в бакет.
+                  v = sqlcipher3.connect(out)
+                  v.execute('PRAGMA key = "x\'%s\'"' % key)
+                  tables = v.execute("select count(*) from sqlite_master").fetchone()[0]
+                  v.close()
+                  size = os.path.getsize(out)
+                  if tables < 1 or size < 1:
+                      raise SystemExit("bad snapshot: tables=%s bytes=%s" % (tables, size))
+                  print("snapshot ok: %s tables=%s bytes=%s" % (out, tables, size), flush=True)
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                - name: snapshot
+                  mountPath: /snapshot
+          containers:
+            - name: upload
+              # Docker Hub отдаёт HTML вместо манифеста для minio/mc, и
+              # quay.io/minio/mc тоже не тянется в этом кластере (проверено
+              # эмпирически). amazon/aws-cli:2.31.15 подтверждённо тянется и
+              # запускается — используем его вместо mc.
+              image: {{ .Values.backup.s3ClientImage | quote }}
+              securityContext:
+                {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+              env:
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anamnesticClaw.fullname" . }}-backup-minio
+                      key: s3-endpoint
+                - name: S3_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anamnesticClaw.fullname" . }}-backup-minio
+                      key: s3-key
+                - name: S3_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "anamnesticClaw.fullname" . }}-backup-minio
+                      key: s3-secret
+                - name: BUCKET
+                  value: {{ .Values.backup.bucket | quote }}
+                - name: AWS_FLAGS
+                  value: {{ if .Values.backup.insecure }}"--no-verify-ssl"{{ else }}""{{ end }}
+              # У образа amazon/aws-cli entrypoint — сам `aws`, поэтому его
+              # нужно переопределить на sh -c, чтобы выполнить скрипт заливки
+              # и сверки размера.
+              command:
+                - sh
+                - -c
+                - |
+                  set -eu
+                  f=$(ls /snapshot/*.db | head -1)
+                  key=$(basename "$f")
+                  export AWS_ACCESS_KEY_ID="$S3_KEY" AWS_SECRET_ACCESS_KEY="$S3_SECRET"
+                  aws $AWS_FLAGS --endpoint-url "$S3_ENDPOINT" s3 cp "$f" "s3://$BUCKET/$key"
+                  # Заливка считается успешной только если объект в бакете
+                  # того же размера. Без этой сверки "джоб зелёный, бакет
+                  # пустой" выглядит как работающий бэкап. Используем
+                  # `s3 ls`, а не `s3api head-object`: политике сервисного
+                  # аккаунта дан только PutObject+ListBucket, head-object
+                  # требует GetObject и всегда вернёт отказ доступа.
+                  local_size=$(wc -c < "$f")
+                  remote_size=$(aws $AWS_FLAGS --endpoint-url "$S3_ENDPOINT" s3 ls "s3://$BUCKET/$key" | awk '{print $3}')
+                  if [ "$local_size" != "$remote_size" ]; then
+                    echo "size mismatch: local=$local_size remote=$remote_size" >&2
+                    exit 1
+                  fi
+                  echo "uploaded $key ($local_size bytes)"
+              volumeMounts:
+                - name: snapshot
+                  mountPath: /snapshot
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "anamnesticClaw.fullname" . }}
+            - name: snapshot
+              emptyDir: {}
+{{- end }}
