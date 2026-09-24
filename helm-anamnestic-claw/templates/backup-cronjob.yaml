@@ -33,8 +33,21 @@ spec:
       backoffLimit: 2
       template:
         metadata:
+          {{- /*
+            Не include "anamnesticClaw.labels": он тащит anamnesticClaw.selectorLabels
+            (app.kubernetes.io/name+instance = anamnestic-claw), а именно по этой
+            паре templates/service.yaml выбирает Endpoints. Сегодня под джоба не
+            попадает в Service только потому, что ни один его контейнер не
+            объявляет порт с именем http — случайность, а не изоляция. Явно даём
+            поду джоба другое app.kubernetes.io/name, чтобы он не мог совпасть с
+            селектором Service, даже если контейнеру позже добавят ports:.
+          */}}
           labels:
-            {{- include "anamnesticClaw.labels" . | nindent 12 }}
+            helm.sh/chart: {{ include "anamnesticClaw.chart" . }}
+            app.kubernetes.io/managed-by: {{ .Release.Service }}
+            app.kubernetes.io/name: {{ include "anamnesticClaw.name" . }}-backup
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/component: backup
         spec:
           restartPolicy: Never
           automountServiceAccountToken: false
@@ -94,6 +107,8 @@ spec:
                   if tables < 1 or size < 1:
                       raise SystemExit("bad snapshot: tables=%s bytes=%s" % (tables, size))
                   print("snapshot ok: %s tables=%s bytes=%s" % (out, tables, size), flush=True)
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
               volumeMounts:
                 - name: data
                   mountPath: /data
@@ -153,6 +168,8 @@ spec:
                     exit 1
                   fi
                   echo "uploaded $key ($local_size bytes)"
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
               volumeMounts:
                 - name: snapshot
                   mountPath: /snapshot
