@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/nazmang/ai-language-tutor
-  tag: 8e3925b7db32   # bump manually after each CI build; ArgoCD selfHeal picks it up on next sync
+  tag: 04b094dc0a88   # bump manually after each CI build; ArgoCD selfHeal picks it up on next sync
 
 # Monitoring objects, rendered by templates/monitoring.yaml -- the canonical
 # copy from chart-lib/. See CLAUDE.md: every chart in this repo ships its own
