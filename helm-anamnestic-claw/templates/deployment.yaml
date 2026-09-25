@@ -42,6 +42,27 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secretName }}
                   key: API_BEARER_TOKEN
+            {{- if .Values.documents.enabled }}
+            - name: DOCUMENTS_S3_BUCKET
+              value: {{ .Values.documents.bucket | quote }}
+            - name: DOCUMENTS_S3_INSECURE
+              value: {{ .Values.documents.insecure | quote }}
+            - name: DOCUMENTS_S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anamnesticClaw.fullname" . }}-documents-minio
+                  key: s3-endpoint
+            - name: DOCUMENTS_S3_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anamnesticClaw.fullname" . }}-documents-minio
+                  key: s3-key
+            - name: DOCUMENTS_S3_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anamnesticClaw.fullname" . }}-documents-minio
+                  key: s3-secret
+            {{- end }}
           volumeMounts:
             - name: data
               mountPath: /data
