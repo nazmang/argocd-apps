@@ -117,6 +117,9 @@ spec:
               echo '{{ dict "models" (dict "providers" (dict "anthropic" (dict "models" .Values.env.anthropicModels))) | toJson }}' | openclaw config patch --stdin
               echo '{{ dict "agents" (dict "defaults" (dict "models" .Values.env.modelAliases "compaction" .Values.env.compaction)) | toJson }}' | openclaw config patch --stdin
               openclaw config set models.providers.deepseek --strict-json '{{ dict "baseUrl" .Values.env.deepseek.baseUrl "api" "openai-completions" "apiKey" "${DEEPSEEK_API_KEY}" "models" .Values.env.deepseek.models | toJson }}'
+              # After the deepseek provider: fallback refs are validated against the
+              # model catalog, so they must be set once the provider exists.
+              openclaw config set agents.defaults.model.fallbacks --strict-json '{{ .Values.env.modelFallbacks | toJson }}'
               # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
               # every plugin, bundled providers included (see values.yaml). The
               # 2026.7.33 bootstrap wrote ["health-plugin"] to this PVC; remove

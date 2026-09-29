@@ -48,6 +48,14 @@ env:
   # key, so `openclaw models status` showed the stock placeholder openai/gpt-5.5
   # with zero providers and the agent could not answer at all.
   model: "anthropic/claude-sonnet-5-5"
+  # Tried in order when the primary fails with a failover-worthy error (5xx,
+  # overload). 2026-09-29: Anthropic answered 503 for every model for 10+
+  # minutes and the bot was mute. v4-pro first (stronger, text only), then
+  # flash (reads images). Only the configured-default chain uses these; a model
+  # picked by hand in a session is strict.
+  modelFallbacks:
+    - deepseek/deepseek-v4-pro
+    - deepseek/deepseek-flash
   # Claude 5.5 (Opus 2026-09-21, Sonnet 2026-09-28) postdate the 2026.9.4
   # gateway, so its built-in anthropic catalog does not list them and the app's
   # model picker would not offer them. They are appended to the bundled
