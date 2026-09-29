@@ -54,14 +54,20 @@ env:
   # provider's catalog (models.mode merge keeps baseUrl/auth from the plugin).
   # Limits from GET /v1/models/<id> on this account's key, 2026-09-29: 1M in,
   # 128k out, image input, adaptive thinking only.
+  # reasoning: true is REQUIRED. Without it the gateway treats the model as
+  # non-reasoning and sends thinking.type "disabled", which 5.5 rejects with
+  # HTTP 400 ("use between_tools or adaptive") -- every chat turn failed for
+  # ~10 minutes on 2026-09-29 right after this catalog entry first went in.
   anthropicModels:
     - id: claude-sonnet-5-5
       name: Claude Sonnet 5.5
+      reasoning: true
       input: [text, image]
       contextWindow: 1000000
       maxTokens: 128000
     - id: claude-opus-5-5
       name: Claude Opus 5.5
+      reasoning: true
       input: [text, image]
       contextWindow: 1000000
       maxTokens: 128000
