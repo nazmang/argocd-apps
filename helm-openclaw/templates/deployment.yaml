@@ -102,6 +102,8 @@ spec:
               openclaw config set tts.enabled true
               openclaw config set tts.provider openai
               openclaw config set models.mode merge
+              echo '{{ dict "models" (dict "providers" (dict "anthropic" (dict "models" .Values.env.anthropicModels))) | toJson }}' | openclaw config patch --stdin
+              echo '{{ dict "agents" (dict "defaults" (dict "models" .Values.env.modelAliases "compaction" .Values.env.compaction)) | toJson }}' | openclaw config patch --stdin
               openclaw config set models.providers.deepseek --strict-json '{{ dict "baseUrl" .Values.env.deepseek.baseUrl "api" "openai-completions" "apiKey" "${DEEPSEEK_API_KEY}" "models" .Values.env.deepseek.models | toJson }}'
               # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
               # every plugin, bundled providers included (see values.yaml). The

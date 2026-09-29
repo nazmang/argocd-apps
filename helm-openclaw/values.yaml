@@ -47,7 +47,34 @@ env:
   # by the bootstrap. Until 2026-09-18 nothing was set and no provider had a
   # key, so `openclaw models status` showed the stock placeholder openai/gpt-5.5
   # with zero providers and the agent could not answer at all.
-  model: "anthropic/claude-sonnet-5"
+  model: "anthropic/claude-sonnet-5-5"
+  # Claude 5.5 (Opus 2026-09-21, Sonnet 2026-09-28) postdate the 2026.9.4
+  # gateway, so its built-in anthropic catalog does not list them and the app's
+  # model picker would not offer them. They are appended to the bundled
+  # provider's catalog (models.mode merge keeps baseUrl/auth from the plugin).
+  # Limits from GET /v1/models/<id> on this account's key, 2026-09-29: 1M in,
+  # 128k out, image input, adaptive thinking only.
+  anthropicModels:
+    - id: claude-sonnet-5-5
+      name: Claude Sonnet 5.5
+      input: [text, image]
+      contextWindow: 1000000
+      maxTokens: 128000
+    - id: claude-opus-5-5
+      name: Claude Opus 5.5
+      input: [text, image]
+      contextWindow: 1000000
+      maxTokens: 128000
+  modelAliases:
+    anthropic/claude-sonnet-5-5: {alias: "sonnet-5.5"}
+    anthropic/claude-opus-5-5: {alias: "opus-5.5"}
+  # Automatic compaction. Unset, a phone session grew to 159k tokens before
+  # anything trimmed it, re-reading all of it (cache) on every message. 300kb of
+  # visible transcript triggers a summary -- roughly 60-80k tokens -- and
+  # notifyUser shows "Compacting context..." in the chat when it happens.
+  compaction:
+    maxActiveTranscriptBytes: "300kb"
+    notifyUser: true
   # DeepSeek has no bundled provider plugin in 2026.9; its API is
   # OpenAI-compatible, so it is a custom provider under models.providers.
   # The bootstrap writes this object with `config set --strict-json`. apiKey
