@@ -99,7 +99,12 @@ spec:
               openclaw config set tools.media.audio.language '{{ .Values.env.voice.audioLanguage }}'
               openclaw config set tools.media.models --strict-json '{{ .Values.env.voice.audioModels | toJson }}'
               openclaw config set tools.media.audio.preferredModel '{{ .Values.env.voice.audioPreferredModel }}'
-              openclaw config set tts.enabled true
+              # auto=inbound: speak only in reply to a voice message, text to
+              # text. The legacy tts.enabled=true set here until 2026-09-29
+              # migrates to auto=always and voiced every text reply too, so it
+              # is removed from the persisted config, not just no longer set.
+              openclaw config unset tts.enabled || true
+              openclaw config set tts.auto inbound
               openclaw config set tts.provider openai
               openclaw config set models.mode merge
               echo '{{ dict "models" (dict "providers" (dict "anthropic" (dict "models" .Values.env.anthropicModels))) | toJson }}' | openclaw config patch --stdin
