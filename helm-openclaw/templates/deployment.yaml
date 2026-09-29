@@ -15,6 +15,13 @@ spec:
     metadata:
       labels:
         {{- include "openclaw.labels" . | nindent 8 }}
+      annotations:
+        # Roll the pod whenever a rendered Secret changes. Keys reach the
+        # container via envFrom/secretKeyRef, which are resolved only at pod
+        # creation, so without this a key rotation updated the Secret and left
+        # the gateway running on the old key (2026-09-29: ANTHROPIC_API_KEY;
+        # the 2026-09-19 rotation had to be finished by a manual restart).
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
     spec:
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
