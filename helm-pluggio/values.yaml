@@ -1,0 +1,81 @@
+image:
+  repository: ghcr.io/nazmang/pluggio
+  tag: "8289ef2"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8420
+
+# All state is one SQLite file. local-path keeps
+# it on the node's disk (SQLite on NFS is a locking hazard), which pins the pod
+# to that node: nodeSelector below names it so a reschedule cannot strand the
+# data on another node.
+persistence:
+  storageClass: local-path
+  size: 5Gi
+
+nodeSelector:
+  kubernetes.io/hostname: k8s03
+
+# Non-secret settings. Keys, the owner's email and the Access ids live in
+# secrets.yaml (this repository is public).
+env:
+  TZ: Europe/Athens              # schedules run on the owner's local time
+  PLUGGIO_ACCESS__HOST: pluggio.srvx.cc
+  PLUGGIO_LLM__PROVIDER: openai_compat
+  # The local model's address and name are in secrets.yaml: a LAN host on the
+  # home network. When it is off, chats set to the cloud providers keep working.
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: RuntimeDefault
+
+ingress:
+  className: nginx
+  host: pluggio.srvx.cc
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: pluggio.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    # The UI channel and the bridge are long-lived WebSockets; nginx's 60 s default
+    # would cut them between messages.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-body-size: 20m   # photo uploads
+
+monitoring:
+  serviceMonitor:
+    # pluggio publishes no /metrics yet. Off by decision, not by omission.
+    enabled: false
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: Pluggio
+    workloads:
+      - name: pluggio
+        container: pluggio
+    ingress:
+      enabled: true
+      host: pluggio.srvx.cc
+      # WebSocket sessions are logged at close with their whole lifetime as the
+      # duration, so p95 here is dominated by them; the threshold only catches
+      # an HTTP side that has really stalled.
+      slowResponseSeconds: 30

@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pluggio
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/nazmang/argocd-apps.git
+    targetRevision: main
+    path: helm-pluggio
+    helm:
+      releaseName: pluggio
+      valueFiles:
+        - values.yaml
+        # SOPS-encrypted, decrypted by helm-secrets on argocd-repo-server.
+        # Single-source on purpose: the secrets:// prefix cannot follow a $ref.
+        - secrets://secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pluggio
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  info:
+    - name: purpose
+      value: "pluggio server at https://pluggio.srvx.cc (behind Cloudflare Access); devices are driven by a bridge near them"
+    # strategy: Recreate with one SQLite file on a local-path volume pinned to
+    # k8s03 — every image change is a short outage, by design. The PVC carries
+    # Delete=false: pruning the app must not delete its state.
