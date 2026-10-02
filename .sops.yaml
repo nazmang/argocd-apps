@@ -54,6 +54,13 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(ntfyAccessToken)$
 
+  # pluggio: LLM keys and the local model's LAN address, the bridge's token, Cloudflare Access settings (the
+  # owner's email and the bridge's service-token id are private here, the repo
+  # is public) and the GHCR pull credential for the private image.
+  - path_regex: helm-pluggio/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(ANTHROPIC_API_KEY|OPENAI_API_KEY|PLUGGIO_BRIDGE__TOKEN|PLUGGIO_ACCESS__TEAM|PLUGGIO_ACCESS__AUD|PLUGGIO_ACCESS__OWNERS|PLUGGIO_ACCESS__BRIDGE_CLIENT_ID|PLUGGIO_LLM__OPENAI_COMPAT__BASE_URL|PLUGGIO_LLM__OPENAI_COMPAT__MODEL|dockerconfigjson)$
+
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
   # data key is literally named "vault-init.yaml" (kubectl create secret
