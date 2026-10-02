@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/nazmang/pluggio
-  tag: "809f93b"
+  tag: "5a7c96b"
   pullPolicy: IfNotPresent
 
 service:
