@@ -6,10 +6,13 @@ metadata:
     {{- include "pluggio.labels" . | nindent 4 }}
 spec:
   replicas: 1
-  # One SQLite file on an RWO local-path volume: the old pod must let go of it
-  # before the new one opens it.
+  # The new pod starts next to the old one (same node: local-path volume) and
+  # waits for the lease; the old one finishes replies, saves and hands over.
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       {{- include "pluggio.selectorLabels" . | nindent 6 }}
