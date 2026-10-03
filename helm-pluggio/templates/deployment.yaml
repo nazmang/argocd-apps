@@ -24,6 +24,7 @@ spec:
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
       automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
       enableServiceLinks: false
       imagePullSecrets:
         - name: {{ include "pluggio.fullname" . }}-ghcr
@@ -48,18 +49,24 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+          # Until the old pod hands over, the new one does not listen yet: up to 2.5 min.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 15
             periodSeconds: 30
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
-            periodSeconds: 10
+            periodSeconds: 2
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:

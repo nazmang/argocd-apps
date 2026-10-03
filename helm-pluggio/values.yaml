@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/nazmang/pluggio
-  tag: "6fa8a4a"
+  tag: "62b88d8"
   pullPolicy: IfNotPresent
 
 service:
@@ -23,6 +23,7 @@ env:
   TZ: Europe/Athens              # schedules run on the owner's local time
   PLUGGIO_ACCESS__HOST: pluggio.srvx.cc
   PLUGGIO_LLM__PROVIDER: openai_compat
+  PLUGGIO_SERVER__LEASE: "true"   # a new pod waits for the old one to hand the girls over
   # The local model's address and name are in secrets.yaml: a LAN host on the
   # home network. When it is off, chats set to the cloud providers keep working.
 
