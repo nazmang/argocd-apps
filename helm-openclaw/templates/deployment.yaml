@@ -98,10 +98,11 @@ spec:
               openclaw config set gateway.trustedProxies '{{ .Values.env.trustedProxies }}'
               openclaw config set talk.provider '{{ .Values.env.voice.talkProvider }}'
               openclaw config set talk.speechLocale '{{ .Values.env.voice.speechLocale }}'
-              openclaw config set talk.realtime.provider openai
-              openclaw config set talk.realtime.mode realtime
-              openclaw config set talk.realtime.transport gateway-relay
-              openclaw config set talk.realtime.model '{{ .Values.env.voice.realtimeModel }}'
+              # 2026-10-09: all model traffic goes through OpenRouter, routed to
+              # zero-data-retention endpoints only (also enforced on the
+              # OpenRouter account). Realtime Talk needs OpenAI directly and has
+              # no ZDR route, so it is removed; Talk falls back to talkProvider.
+              openclaw config unset talk.realtime || true
               openclaw config set tools.media.audio.enabled true
               openclaw config set tools.media.audio.language '{{ .Values.env.voice.audioLanguage }}'
               openclaw config set tools.media.models --strict-json '{{ .Values.env.voice.audioModels | toJson }}'
@@ -112,14 +113,21 @@ spec:
               # is removed from the persisted config, not just no longer set.
               openclaw config unset tts.enabled || true
               openclaw config set tts.auto inbound
-              openclaw config set tts.provider openai
-              openclaw config set models.mode merge
-              echo '{{ dict "models" (dict "providers" (dict "anthropic" (dict "models" .Values.env.anthropicModels))) | toJson }}' | openclaw config patch --stdin
-              echo '{{ dict "agents" (dict "defaults" (dict "models" .Values.env.modelAliases "compaction" .Values.env.compaction)) | toJson }}' | openclaw config patch --stdin
-              openclaw config set models.providers.deepseek --strict-json '{{ dict "baseUrl" .Values.env.deepseek.baseUrl "api" "openai-completions" "apiKey" "${DEEPSEEK_API_KEY}" "models" .Values.env.deepseek.models | toJson }}'
-              # After the deepseek provider: fallback refs are validated against the
-              # model catalog, so they must be set once the provider exists.
+              openclaw config set tts.provider openrouter
+              openclaw config set tts.providers.openrouter --strict-json '{{ .Values.env.voice.tts | toJson }}'
+              # Direct providers left on the PVC by earlier bootstraps: without
+              # their keys they are dead entries, but the pdf tool auto-detects
+              # native-PDF providers, so nothing direct may stay configured.
+              openclaw config unset models.providers.anthropic || true
+              openclaw config unset models.providers.deepseek || true
+              openclaw config unset agents.defaults.models || true
+              echo '{{ dict "agents" (dict "defaults" (dict "models" .Values.env.models "compaction" .Values.env.compaction)) | toJson }}' | openclaw config patch --stdin
               openclaw config set agents.defaults.model.fallbacks --strict-json '{{ .Values.env.modelFallbacks | toJson }}'
+              # Sonnet 5.5 rejects reasoning off (HTTP 400 "Reasoning is
+              # mandatory"), and the pdf/image tools call their model without
+              # thinking, so they use Haiku 5.5, which accepts it.
+              openclaw config set agents.defaults.pdfModel.primary '{{ .Values.env.mediaModel }}'
+              openclaw config set agents.defaults.imageModel.primary '{{ .Values.env.mediaModel }}'
               # plugins.allow must stay UNSET on 2026.9: it is an allowlist for
               # every plugin, bundled providers included (see values.yaml). The
               # 2026.7.33 bootstrap wrote ["health-plugin"] to this PVC; remove

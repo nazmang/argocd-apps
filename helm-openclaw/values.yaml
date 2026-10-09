@@ -43,45 +43,40 @@ env:
   # enables it, otherwise every CLI call warns "plugin disabled but config is
   # present" (the QR still honoured the URL, but the config belongs to it).
   publicUrl: "wss://openclaw.srvx.cc"
-  # Default agent model, `provider/model`. Written to agents.defaults.model.primary
-  # by the bootstrap. Until 2026-09-18 nothing was set and no provider had a
-  # key, so `openclaw models status` showed the stock placeholder openai/gpt-5.5
-  # with zero providers and the agent could not answer at all.
-  model: "anthropic/claude-sonnet-5-5"
-  # Tried in order when the primary fails with a failover-worthy error (5xx,
-  # overload). 2026-09-29: Anthropic answered 503 for every model for 10+
-  # minutes and the bot was mute. v4-pro first (stronger, text only), then
-  # flash (reads images). Only the configured-default chain uses these; a model
-  # picked by hand in a session is strict.
+  # Models (2026-10-09): everything goes through OpenRouter and only to
+  # zero-data-retention endpoints -- health data, medications and intimate
+  # habits reach the model, and neither Anthropic direct nor DeepSeek direct
+  # had ZDR. Enforced twice: on the OpenRouter account (privacy settings, all
+  # model groups) and per request (`params.provider` below). Claude 5.5 has
+  # ZDR only on Google Vertex and Amazon Bedrock. Refs resolve against
+  # OpenRouter's live catalog; note the dot in the slug (claude-sonnet-5.5).
+  # Spike: anamnestic-claw docs, 2026-10-09; verified live in a container.
+  model: "openrouter/anthropic/claude-sonnet-5.5"
+  # Tried in order when the primary fails with a failover-worthy error. A model
+  # picked by hand in a session is strict and does not fall back.
   modelFallbacks:
-    - deepseek/deepseek-v4-pro
-    - deepseek/deepseek-flash
-  # Claude 5.5 (Opus 2026-09-21, Sonnet 2026-09-28) postdate the 2026.9.4
-  # gateway, so its built-in anthropic catalog does not list them and the app's
-  # model picker would not offer them. They are appended to the bundled
-  # provider's catalog (models.mode merge keeps baseUrl/auth from the plugin).
-  # Limits from GET /v1/models/<id> on this account's key, 2026-09-29: 1M in,
-  # 128k out, image input, adaptive thinking only.
-  # reasoning: true is REQUIRED. Without it the gateway treats the model as
-  # non-reasoning and sends thinking.type "disabled", which 5.5 rejects with
-  # HTTP 400 ("use between_tools or adaptive") -- every chat turn failed for
-  # ~10 minutes on 2026-09-29 right after this catalog entry first went in.
-  anthropicModels:
-    - id: claude-sonnet-5-5
-      name: Claude Sonnet 5.5
-      reasoning: true
-      input: [text, image]
-      contextWindow: 1000000
-      maxTokens: 128000
-    - id: claude-opus-5-5
-      name: Claude Opus 5.5
-      reasoning: true
-      input: [text, image]
-      contextWindow: 1000000
-      maxTokens: 128000
-  modelAliases:
-    anthropic/claude-sonnet-5-5: {alias: "sonnet-5.5"}
-    anthropic/claude-opus-5-5: {alias: "opus-5.5"}
+    - openrouter/anthropic/claude-haiku-5.5
+  # pdf and image tools. Sonnet 5.5 answers HTTP 400 "Reasoning is mandatory"
+  # when thinking is off, and these tools call their model without thinking;
+  # Haiku 5.5 accepts it (verified on a real lab PDF).
+  mediaModel: "openrouter/anthropic/claude-haiku-5.5"
+  # agents.defaults.models: picker aliases plus the per-request routing. The
+  # bootstrap replaces the whole map, so stale direct-provider entries go.
+  models:
+    openrouter/anthropic/claude-sonnet-5.5:
+      alias: "sonnet-5.5"
+      params: &zdr
+        provider:
+          zdr: true
+          data_collection: deny
+          only: [google-vertex, amazon-bedrock]
+          allow_fallbacks: true
+    openrouter/anthropic/claude-haiku-5.5:
+      alias: "haiku-5.5"
+      params: *zdr
+    openrouter/anthropic/claude-opus-5.5:
+      alias: "opus-5.5"
+      params: *zdr
   # Automatic compaction. Unset, a phone session grew to 159k tokens before
   # anything trimmed it, re-reading all of it (cache) on every message. 300kb of
   # visible transcript triggers a summary -- roughly 60-80k tokens -- and
@@ -89,34 +84,6 @@ env:
   compaction:
     maxActiveTranscriptBytes: "300kb"
     notifyUser: true
-  # DeepSeek has no bundled provider plugin in 2026.9; its API is
-  # OpenAI-compatible, so it is a custom provider under models.providers.
-  # The bootstrap writes this object with `config set --strict-json`. apiKey
-  # is an env reference resolved by the gateway from the openclaw-model-keys
-  # Secret. Selectable in the app's model picker as deepseek/deepseek-chat
-  # (V3) and deepseek/deepseek-reasoner (R1); primary stays env.model.
-  deepseek:
-    baseUrl: "https://api.deepseek.com"
-    # Model ids and limits taken from GET https://api.deepseek.com/models with
-    # this account's key on 2026-09-24, not from memory: the previous entries
-    # (deepseek-chat "V3" / deepseek-reasoner "R1") were names I assumed, and
-    # neither id appears in the catalog any more -- deepseek-chat still answers
-    # as a legacy alias, deepseek-reasoner was never verified. Both current
-    # models reason by default and bill reasoning tokens (a one-word reply cost
-    # 76 and 184 reasoning tokens), so a small maxTokens budget returns empty
-    # content: keep maxTokens generous.
-    models:
-      - id: deepseek-flash
-        name: DeepSeek V4.1 Flash
-        reasoning: true
-        input: [text, image]
-        contextWindow: 1048576
-        maxTokens: 393216
-      - id: deepseek-v4-pro
-        name: DeepSeek V4 Pro
-        reasoning: true
-        contextWindow: 1048576
-        maxTokens: 393216
   # gateway.trustedProxies. 2026.9 answers 403 {"type":"proxy_attribution_required"}
   # to every request that carries X-Forwarded-* headers from an address not
   # listed here -- which is all of them, since everything arrives through
@@ -126,44 +93,31 @@ env:
   # ingress-nginx lives; nothing outside the cluster can present itself from
   # these addresses.
   trustedProxies: '["10.233.64.0/18"]'
-  # Voice (2026-09-21). The Android app's dictation / Talk / voice notes all
-  # need a speech provider on the gateway -- on-device recognition was
-  # unavailable on the owner's Android 17 beta, and Anthropic/DeepSeek do not
-  # handle audio. OpenAI covers every path in one key: Talk provider (TTS via
-  # talk.speak), realtime Talk over the gateway relay (the only realtime mode
-  # Android supports), voice-note transcription (tools.media.audio) and TTS.
-  # The key is OPENAI_API_KEY in openclaw-model-keys. speechLocale is the
-  # recognition locale pushed to device nodes.
+  # Voice (2026-10-09: moved from OpenAI direct to OpenRouter ZDR). Realtime
+  # Talk is gone -- it needs OpenAI's realtime relay, which has no ZDR route;
+  # Talk output uses the phone's own TTS. speechLocale is the recognition
+  # locale pushed to device nodes. Both STT models and the TTS model are on
+  # OpenRouter's ZDR endpoint list (Groq, ElevenLabs) and were verified on a
+  # Russian round trip (TTS -> STT, word for word).
   voice:
     speechLocale: "ru-RU"
     audioLanguage: "ru"
-    # Android switches from native (on-device) speech to the gateway relay only
-    # when talk.catalog reports the realtime group ready, and that needs an
-    # advertised realtime model. Published routes are gpt-live-1,
-    # gpt-live-1-codex, gpt-realtime-2.1 and gpt-realtime-2.1-mini;
-    # gpt-realtime-2.1 is the one this account's key actually lists in
-    # /v1/models (gpt-live-1 is not), so it is the safe pick here.
-    realtimeModel: "gpt-realtime-2.1"
-    # Talk's speech OUTPUT provider. Valid ids are elevenlabs, mlx and system --
-    # OpenAI is explicitly NOT a Talk provider (it registers speech synthesis
-    # for the separate `tts` surface, which is why tts.provider below is
-    # openai). The schema takes any string, so "openai" here validated fine and
-    # did nothing; `system` uses the phone's own TTS, no extra key. Corrected
-    # 2026-09-24 after reading docs.openclaw.ai/nodes/talk.
     talkProvider: "system"
-    # tools.media.audio only says "transcribe voice notes"; WHAT transcribes
-    # them comes from tools.media.models, and that list was empty -- `openclaw
-    # models list` showed no audio-capable model at all, so a voice note had
-    # nowhere to go (2026-09-24). gpt-4o-mini-transcribe is the cheap default,
-    # whisper-1 the fallback; both verified present on this account's key.
     audioModels:
-      - provider: openai
-        model: gpt-4o-mini-transcribe
+      - provider: openrouter
+        model: openai/whisper-large-v3-turbo
         capabilities: [audio]
-      - provider: openai
-        model: whisper-1
+      - provider: openrouter
+        model: elevenlabs/scribe-v2
         capabilities: [audio]
-    audioPreferredModel: "openai/gpt-4o-mini-transcribe"
+    audioPreferredModel: "openrouter/openai/whisper-large-v3-turbo"
+    # tts.providers.openrouter. ElevenLabs needs its own voice id (the
+    # provider default af_alloy is a kokoro voice and is rejected); this is the
+    # premade "George". Gemini TTS was rejected: it only returns pcm.
+    tts:
+      model: elevenlabs/eleven-multilingual-v2
+      speakerVoice: JBFqnCBsd6RMkjVDRZzb
+      responseFormat: mp3
 
 resources:
   limits:
