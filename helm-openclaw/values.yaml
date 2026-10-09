@@ -93,9 +93,9 @@ env:
   # ingress-nginx lives; nothing outside the cluster can present itself from
   # these addresses.
   trustedProxies: '["10.233.64.0/18"]'
-  # Voice (2026-10-09: moved from OpenAI direct to OpenRouter ZDR). Realtime
-  # Talk is gone -- it needs OpenAI's realtime relay, which has no ZDR route;
-  # Talk output uses the phone's own TTS. speechLocale is the recognition
+  # Voice (2026-10-09: STT/TTS moved from OpenAI direct to OpenRouter ZDR).
+  # Live Talk is the owner-approved exception: OpenRouter has no realtime API,
+  # so it stays on OpenAI directly (no ZDR) with its own key name. speechLocale is the recognition
   # locale pushed to device nodes. Both STT models and the TTS model are on
   # OpenRouter's ZDR endpoint list (Groq, ElevenLabs) and were verified on a
   # Russian round trip (TTS -> STT, word for word).
@@ -103,6 +103,7 @@ env:
     speechLocale: "ru-RU"
     audioLanguage: "ru"
     talkProvider: "system"
+    realtimeModel: "gpt-realtime-2.1"
     audioModels:
       - provider: openrouter
         model: openai/whisper-large-v3-turbo
