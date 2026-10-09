@@ -51,10 +51,15 @@ env:
   # ZDR only on Google Vertex and Amazon Bedrock. Refs resolve against
   # OpenRouter's live catalog; note the dot in the slug (claude-sonnet-5.5).
   # Spike: anamnestic-claw docs, 2026-10-09; verified live in a container.
-  model: "openrouter/anthropic/claude-sonnet-5.5"
+  # Default is DeepSeek V4 Pro (owner's choice 2026-10-09: 2-3x cheaper than
+  # Sonnet for everyday text). Text only -- pdf/image go to mediaModel. Its
+  # ZDR route is pinned to US hosts below (SiliconFlow and other China-based
+  # ZDR hosts are excluded). Sonnet/Opus stay one tap away in the picker.
+  model: "openrouter/deepseek/deepseek-v4-pro"
   # Tried in order when the primary fails with a failover-worthy error. A model
   # picked by hand in a session is strict and does not fall back.
   modelFallbacks:
+    - openrouter/anthropic/claude-sonnet-5.5
     - openrouter/anthropic/claude-haiku-5.5
   # pdf and image tools. Sonnet 5.5 answers HTTP 400 "Reasoning is mandatory"
   # when thinking is off, and these tools call their model without thinking;
@@ -77,6 +82,14 @@ env:
     openrouter/anthropic/claude-opus-5.5:
       alias: "opus-5.5"
       params: *zdr
+    openrouter/deepseek/deepseek-v4-pro:
+      alias: "deepseek"
+      params:
+        provider:
+          zdr: true
+          data_collection: deny
+          only: [azure, deepinfra, together, parasail]
+          allow_fallbacks: true
   # Automatic compaction. Unset, a phone session grew to 159k tokens before
   # anything trimmed it, re-reading all of it (cache) on every message. 300kb of
   # visible transcript triggers a summary -- roughly 60-80k tokens -- and
