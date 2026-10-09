@@ -145,10 +145,14 @@ resources:
     # agent turn with a retry (weight-reminder, 09:00 UTC) went from ~380 MiB
     # past 1Gi in twelve seconds and was OOMKilled. One event, but the
     # headroom was the problem, not the job.
-    memory: 2Gi
+    # 2Gi -> 3Gi on 2026-10-09. On 2026.9.9 with 16 plugins the gateway idles
+    # at rss 1.3-1.4 GiB (heap only ~300 MiB); the 18:00 UTC evening check-in
+    # cron (DeepSeek, 74 tools) pushed it past 2Gi -> OOMKilled. Request
+    # raised to the observed idle so the scheduler reserves it.
+    memory: 3Gi
   requests:
     cpu: 100m
-    memory: 768Mi
+    memory: 1536Mi
 
 securityContext:
   runAsNonRoot: true
