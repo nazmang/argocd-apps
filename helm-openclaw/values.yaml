@@ -12,7 +12,7 @@ image:
   #   - `plugins.allow` is an allowlist for EVERY plugin, bundled ones included
   #     (["health-plugin"] left only memory-core + health-plugin enabled, no
   #     anthropic provider, no device-pair) -- so it must stay unset.
-  tag: "2026.9.4"
+  tag: "2026.9.9"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
