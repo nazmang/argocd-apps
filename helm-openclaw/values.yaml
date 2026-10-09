@@ -20,6 +20,10 @@ replicaCount: 1
 service:
   type: ClusterIP
   port: 18789
+  # Widget sandbox listener (gateway port + 1). show_widget and dashboard
+  # widgets render from this separate origin; without a public route the
+  # Control UI shows "widget sandbox host unavailable" (2026-10-09).
+  sandboxPort: 18790
 
 persistence:
   storageClass: nfs-client
@@ -177,6 +181,12 @@ ingress:
     external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
     external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+
+# Public origin of the widget sandbox (mcp.apps.sandboxOrigin). It must differ
+# from the Control UI origin and must not host authenticated content.
+sandboxIngress:
+  enabled: true
+  host: openclaw-sandbox.srvx.cc
 
 gatewayTokenSecretName: openclaw-gateway-token
 # Provider API keys (ANTHROPIC_API_KEY) -- see templates/secrets.yaml.

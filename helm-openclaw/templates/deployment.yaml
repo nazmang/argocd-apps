@@ -92,6 +92,9 @@ spec:
               openclaw config set gateway.mode local
               openclaw config set gateway.bind lan
               openclaw config set gateway.controlUi.allowedOrigins '["{{ .Values.env.allowedOrigins }}"]'
+              {{- if .Values.sandboxIngress.enabled }}
+              openclaw config set mcp.apps.sandboxOrigin 'https://{{ .Values.sandboxIngress.host }}'
+              {{- end }}
               openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'
@@ -221,6 +224,9 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: sandbox
+              containerPort: {{ .Values.service.sandboxPort }}
               protocol: TCP
           envFrom:
             - secretRef:

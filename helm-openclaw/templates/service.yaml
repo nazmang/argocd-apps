@@ -11,5 +11,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: {{ .Values.service.sandboxPort }}
+      targetPort: sandbox
+      protocol: TCP
+      name: sandbox
   selector:
     {{- include "openclaw.selectorLabels" . | nindent 4 }}

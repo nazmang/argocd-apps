@@ -23,3 +23,32 @@ spec:
                 port:
                   name: http
 {{- end }}
+{{- if and .Values.ingress.enabled .Values.sandboxIngress.enabled }}
+---
+# Widget sandbox origin: a separate host so widget code never shares the
+# Control UI origin. Serves only static iframe scaffolding, no auth, no data.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "openclaw.fullname" . }}-sandbox
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    external-dns.alpha.kubernetes.io/hostname: {{ .Values.sandboxIngress.host }}
+    external-dns.alpha.kubernetes.io/target: {{ index .Values.ingress.annotations "external-dns.alpha.kubernetes.io/target" }}
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.sandboxIngress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "openclaw.fullname" . }}
+                port:
+                  name: sandbox
+{{- end }}
