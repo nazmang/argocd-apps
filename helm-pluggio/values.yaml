@@ -43,10 +43,16 @@ securityContext:
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true   # writes go to /data (the volume) and /tmp only
   capabilities:
-    drop: ["ALL"]
+    drop: ["ALL"]                # nothing added: 8420 is not a privileged port
   seccompProfile:
     type: RuntimeDefault
+
+# Uploads over 1 MB (photos, story videos up to 100 MB) spill into /tmp. On the
+# node's disk, not in memory: a video in tmpfs would count against the 1Gi limit.
+tmp:
+  sizeLimit: 512Mi
 
 ingress:
   className: nginx
