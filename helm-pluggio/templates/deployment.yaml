@@ -52,6 +52,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp
           # Until the old pod hands over, the new one does not listen yet: up to 2.5 min.
           startupProbe:
             httpGet:
@@ -76,6 +78,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "pluggio.fullname" . }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmp.sizeLimit }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
