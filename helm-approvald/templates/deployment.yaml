@@ -32,7 +32,8 @@ spec:
         - name: {{ include "approvald.fullname" . }}-ghcr
       containers:
         - name: approvald
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          # {{ .Values.image.tag }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}

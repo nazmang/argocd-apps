@@ -19,9 +19,12 @@
 
 image:
   repository: ghcr.io/nazmang/approvald
-  # Empty until the first image is built: the chart refuses to render without
-  # a tag rather than deploy "latest".
+  # Deployed by digest only (reviewer's requirement): a tag can be moved, a
+  # digest cannot. The tag is kept next to it for humans and is not used to
+  # pull. Both empty until the reviewed image is built -- the chart refuses to
+  # render without a digest. Do not reuse a digest from before the review fixes.
   tag: ""
+  digest: ""
   pullPolicy: IfNotPresent
 
 ports:
