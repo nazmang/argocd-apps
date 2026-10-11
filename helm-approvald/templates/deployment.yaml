@@ -60,9 +60,13 @@ spec:
               path: /healthz
               port: http
             periodSeconds: 10
+          # /healthz checks the database and answers 503 while Postgres is
+          # down. Right for readiness (stop sending traffic), wrong for
+          # liveness: restarting the pod does not bring the database back, it
+          # only adds a crash loop. Liveness asks the one question a restart
+          # can fix -- is the process still accepting connections.
           livenessProbe:
-            httpGet:
-              path: /healthz
+            tcpSocket:
               port: http
             periodSeconds: 30
             failureThreshold: 3
