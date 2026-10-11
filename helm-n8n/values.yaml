@@ -284,8 +284,9 @@ renderd:
       # code change, same rule as the Job template.
       # 0.4.0: v2 request blocks (format up to 4K UHD, blur fit, overlays,
       # preview PNG) and /v1/capabilities. 0.5.0: visual presets, motions,
-      # transitions. 0.6.0: see bg-coast-news renderd/README. Rollback: 0.5.0.
-      tag: "0.6.0"
+      # transitions. 0.6.0: see bg-coast-news renderd/README. 0.6.1: vignette
+      # not on the first slide (bg-coast-news main 830d295). Rollback: 0.6.0.
+      tag: "0.6.1"
       pullPolicy: IfNotPresent
     port: 8080
     # ffmpeg pool and queue depth beyond it (more -> 429). Spec §6.
