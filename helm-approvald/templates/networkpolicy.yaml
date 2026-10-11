@@ -2,8 +2,10 @@
   Calico enforces NetworkPolicy in this cluster. Default deny both ways for
   approvald's pod, then exactly what the spec needs:
 
-  in   8080  from ingress-nginx (the Mini App) and monitoring (scrapes)
-  in   8081  from n8n's main pod only
+  in   8080  from ingress-nginx only (the Mini App)
+  in   8081  from n8n's main pod (/v1) and monitoring (/metrics). This port
+             serves /metrics and the detailed /healthz without a token and
+             listens on 0.0.0.0: this policy is what keeps it internal.
   out  DNS (nodelocaldns, coredns), Postgres on dkr01, n8n's webhook port,
        and HTTPS to the internet for api.telegram.org
 
@@ -28,9 +30,6 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: {{ $np.monitoringNamespace }}
       ports:
         - port: http
           protocol: TCP
@@ -41,6 +40,9 @@ spec:
           podSelector:
             matchLabels:
               {{- toYaml $np.n8n.podLabels | nindent 14 }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.monitoringNamespace }}
       ports:
         - port: internal
           protocol: TCP

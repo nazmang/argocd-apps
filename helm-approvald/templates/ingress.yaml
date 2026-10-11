@@ -19,7 +19,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "approvald.fullname" $ }}
+                name: {{ include "approvald.fullname" $ }}-public
                 port:
                   name: http
           {{- end }}

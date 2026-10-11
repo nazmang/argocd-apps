@@ -1,10 +1,7 @@
 {{- /*
   What the baseline in monitoring.yaml cannot see: the inside of approvald.
-  Metric names are the spec's (§8), plus two gauges requested from the
-  programmer on 2026-10-11 -- approvald_topics{status} and
-  approvald_oldest_pending_age_seconds. The rules using them stay silent until
-  the image publishes them (absent series evaluate to nothing), which is why
-  ApprovaldMetricsIncomplete exists.
+  Metric names and label values are the image's (approvald/metrics.py,
+  approvald/README.md in bg-coast-news, 0.1.1).
 */}}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -19,67 +16,56 @@ spec:
     - name: {{ .Release.Name }}
       rules:
         - alert: ApprovaldScrapeFailing
-          # The pod can be Running and Ready while the process behind /metrics
-          # has stopped answering.
-          expr: up{job="{{ .Release.Name }}"} == 0
+          # The pod can be Running and Ready (its probe is on the public port)
+          # while the internal port behind /metrics has stopped answering --
+          # and that port is also n8n's way in.
+          expr: up{job="{{ .Release.Name }}-internal"} == 0
           for: 5m
           labels:
             severity: warning
             app: {{ .Release.Name }}
           annotations:
-            summary: "approvald is not answering scrapes"
-            description: "Prometheus cannot read approvald's /metrics."
+            summary: "approvald internal port is not answering"
+            description: "Prometheus cannot read /metrics on :8081. n8n's /v1 calls go to the same port: new topics fall back to the old Approve card."
 
-        - alert: ApprovaldInitDataRejected
-          # Bad signatures or a foreign Telegram user. "expired" is left out:
-          # an app left open for an hour produces it legitimately. More than a
-          # handful in ten minutes is either someone probing the API or a bot
-          # token that no longer matches (rotated in BotFather, not here).
-          expr: |
-            sum(increase(approvald_auth_failures_total{reason!="expired"}[10m])) > 5
+        - alert: ApprovaldDispatchFailed
+          # The owner approved and nothing will happen: approvald gave up after
+          # five attempts. The topic is red in the UI, but nobody looks at the
+          # UI after tapping approve.
+          expr: sum(increase(approvald_dispatch_total{status="failed"}[1h])) > 0
           for: 0m
           labels:
             severity: warning
             app: {{ .Release.Name }}
           annotations:
-            summary: "approvald rejects initData: {{`{{ $value | humanize }}`}} in 10 minutes"
-            description: "Signature or user check failing. Either someone is probing approve.srvx.cc or APPROVALD_BOT_TOKEN no longer matches the bot. See approvald_auth_failures_total by reason."
+            summary: "approvald: an approved topic was not dispatched to n8n"
+            description: "dispatch_failed after all retries. Check the approvald-dispatch webhook in n8n."
 
-        - alert: ApprovaldDispatchFailed
-          # An approved topic that never reached n8n: the owner said yes and
-          # nothing happens. Stays red in the UI, but nobody looks at the UI
-          # after approving.
-          expr: approvald_topics{status="dispatch_failed"} > 0
-          for: 15m
+        - alert: ApprovaldClaimedNoExecution
+          # n8n's webhook claimed the topic (took its payload) but did not
+          # confirm starting 01-monitoring: the draft may never be written.
+          expr: sum(increase(approvald_dispatch_total{status="claimed_no_exec"}[1h])) > 0
+          for: 0m
           labels:
             severity: warning
             app: {{ .Release.Name }}
           annotations:
-            summary: "{{`{{ $value }}`}} approved topic(s) stuck in dispatch_failed"
-            description: "approvald gave up dispatching to n8n after APPROVALD_DISPATCH_MAX attempts. Check the approvald-dispatch webhook in n8n, then re-dispatch."
+            summary: "approvald: n8n claimed a topic but did not start the draft"
+            description: "Look for the topic's execution in 01-monitoring; if there is none, the approval was lost after claim."
 
-        - alert: ApprovaldDispatchRetrying
-          # Earlier and softer than the rule above: attempts are failing now,
-          # before the topic is given up on.
-          expr: sum(increase(approvald_dispatch_total{status!="ok"}[15m])) > 0
-          for: 10m
-          labels:
-            severity: info
-            app: {{ .Release.Name }}
-          annotations:
-            summary: "approvald dispatch to n8n is failing"
-            description: "Dispatch attempts failed in the last 15 minutes. n8n or its approvald-dispatch webhook may be down."
-
-        - alert: ApprovaldMetricsIncomplete
-          # The two rules above need gauges the spec did not list. Until the
-          # image publishes them, say so instead of looking healthy.
+        - alert: ApprovaldInitDataRejected
+          # Reasons that a genuine owner session does not produce: a forged or
+          # broken signature, a foreign Telegram user, a blocked IP. "expired"
+          # and "future" are left out -- an app left open for an hour, or a
+          # phone clock off, produce them legitimately. More than a handful in
+          # ten minutes is someone probing, or a bot token that no longer
+          # matches (rotated in BotFather, not here).
           expr: |
-            up{job="{{ .Release.Name }}"} == 1
-            unless on() (count(approvald_topics) > 0)
-          for: 1h
+            sum(increase(approvald_auth_failures_total{reason=~"bad_hash|no_hash|malformed|forbidden|ip_blocked"}[10m])) > 5
+          for: 0m
           labels:
-            severity: info
+            severity: warning
             app: {{ .Release.Name }}
           annotations:
-            summary: "approvald does not publish approvald_topics{status}"
-            description: "ApprovaldDispatchFailed cannot fire without it."
+            summary: "approvald rejects UI requests"
+            description: "Signature, user or IP checks failing on approve.srvx.cc. See approvald_auth_failures_total by reason."

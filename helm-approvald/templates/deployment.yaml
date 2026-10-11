@@ -51,7 +51,7 @@ spec:
             {{- end }}
           envFrom:
             - secretRef:
-                name: {{ include "approvald.fullname" . }}-env
+                name: {{ include "approvald.fullname" . }}-secrets
           volumeMounts:
             - name: tmp
               mountPath: /tmp
