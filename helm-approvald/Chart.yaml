@@ -1,0 +1,6 @@
+apiVersion: v2
+name: approvald
+description: Web approval queue for bg-coast-news topics, served as a Telegram Mini App
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

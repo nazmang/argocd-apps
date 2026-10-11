@@ -1,0 +1,85 @@
+{{- /*
+  What the baseline in monitoring.yaml cannot see: the inside of approvald.
+  Metric names are the spec's (§8), plus two gauges requested from the
+  programmer on 2026-10-11 -- approvald_topics{status} and
+  approvald_oldest_pending_age_seconds. The rules using them stay silent until
+  the image publishes them (absent series evaluate to nothing), which is why
+  ApprovaldMetricsIncomplete exists.
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: prometheus
+spec:
+  groups:
+    - name: {{ .Release.Name }}
+      rules:
+        - alert: ApprovaldScrapeFailing
+          # The pod can be Running and Ready while the process behind /metrics
+          # has stopped answering.
+          expr: up{job="{{ .Release.Name }}"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald is not answering scrapes"
+            description: "Prometheus cannot read approvald's /metrics."
+
+        - alert: ApprovaldInitDataRejected
+          # Bad signatures or a foreign Telegram user. "expired" is left out:
+          # an app left open for an hour produces it legitimately. More than a
+          # handful in ten minutes is either someone probing the API or a bot
+          # token that no longer matches (rotated in BotFather, not here).
+          expr: |
+            sum(increase(approvald_auth_failures_total{reason!="expired"}[10m])) > 5
+          for: 0m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald rejects initData: {{`{{ $value | humanize }}`}} in 10 minutes"
+            description: "Signature or user check failing. Either someone is probing approve.srvx.cc or APPROVALD_BOT_TOKEN no longer matches the bot. See approvald_auth_failures_total by reason."
+
+        - alert: ApprovaldDispatchFailed
+          # An approved topic that never reached n8n: the owner said yes and
+          # nothing happens. Stays red in the UI, but nobody looks at the UI
+          # after approving.
+          expr: approvald_topics{status="dispatch_failed"} > 0
+          for: 15m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "{{`{{ $value }}`}} approved topic(s) stuck in dispatch_failed"
+            description: "approvald gave up dispatching to n8n after APPROVALD_DISPATCH_MAX attempts. Check the approvald-dispatch webhook in n8n, then re-dispatch."
+
+        - alert: ApprovaldDispatchRetrying
+          # Earlier and softer than the rule above: attempts are failing now,
+          # before the topic is given up on.
+          expr: sum(increase(approvald_dispatch_total{status!="ok"}[15m])) > 0
+          for: 10m
+          labels:
+            severity: info
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald dispatch to n8n is failing"
+            description: "Dispatch attempts failed in the last 15 minutes. n8n or its approvald-dispatch webhook may be down."
+
+        - alert: ApprovaldMetricsIncomplete
+          # The two rules above need gauges the spec did not list. Until the
+          # image publishes them, say so instead of looking healthy.
+          expr: |
+            up{job="{{ .Release.Name }}"} == 1
+            unless on() (count(approvald_topics) > 0)
+          for: 1h
+          labels:
+            severity: info
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald does not publish approvald_topics{status}"
+            description: "ApprovaldDispatchFailed cannot fire without it."

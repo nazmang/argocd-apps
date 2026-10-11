@@ -1,0 +1,138 @@
+# approvald: one page listing the topics waiting for the owner's approval,
+# opened from Telegram as a Mini App. Spec: bg-coast-news
+# docs/superpowers/specs/2026-10-11-approvald-design.md (c926b79).
+#
+# Two ports, two audiences:
+#   8080  public, through ingress: /app (the Mini App) and /api (its API).
+#         Every /api request carries Telegram initData, which approvald checks
+#         against the bot token; only the owner's Telegram id is let through.
+#         /healthz and /metrics are served here too, and are NOT routed by the
+#         ingress -- probes and Prometheus reach the pod directly.
+#   8081  internal API for n8n (POST /v1/topics), header X-Approvald-Token.
+#         ClusterIP only, and the NetworkPolicy admits n8n's own pod and
+#         nothing else.
+#
+# State lives in Postgres: database and role `approvald` on tutor-postgres
+# (dkr01, 10.164.1.105:55432), next to n8n and inboxd. It is backed up with
+# them: pg-backup.sh dumps every database the server has (docker repo,
+# docker-postgres-backup/README.md).
+
+image:
+  repository: ghcr.io/nazmang/approvald
+  # Empty until the first image is built: the chart refuses to render without
+  # a tag rather than deploy "latest".
+  tag: ""
+  pullPolicy: IfNotPresent
+
+ports:
+  public: 8080
+  internal: 8081
+
+# Non-secret settings. Names follow the spec; the owner's Telegram id is NOT
+# here -- this repository is public -- it is in secrets.yaml.
+env:
+  # A pending topic expires after a day (spec §4).
+  APPROVALD_TTL: "86400"
+  # initData older than an hour is refused; the Mini App asks to reopen.
+  APPROVALD_INITDATA_TTL: "3600"
+  # After this many failed dispatch attempts a topic becomes dispatch_failed.
+  APPROVALD_DISPATCH_MAX: "5"
+  # n8n's thin entry workflow (Webhook -> Execute Workflow 01-monitoring).
+  # In-cluster on purpose: the decision never leaves the cluster.
+  APPROVALD_DISPATCH_URL: "http://n8n.n8n.svc:5678/webhook/approvald-dispatch"
+
+ingress:
+  className: nginx
+  host: approve.srvx.cc
+  # Only what the Mini App needs. Not "/": that would publish /healthz (queue
+  # size and age) and /metrics to the internet.
+  paths: [/app, /api]
+  annotations:
+    # TLS ends at Cloudflare's edge (Universal SSL covers *.srvx.cc, one level
+    # only -- which is why this is not approve.ktulu.srvx.cc). The tunnel's
+    # wildcard forwards to ingress-nginx; external-dns creates the record.
+    external-dns.alpha.kubernetes.io/hostname: approve.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Per client IP (CF-Connecting-IP, set cluster-wide). approvald limits per
+    # Telegram user itself (60/min); this is the coarse layer in front of the
+    # signature check, so a flood never reaches the HMAC.
+    nginx.ingress.kubernetes.io/limit-rpm: "120"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+    # The API takes small JSON bodies; nothing here uploads.
+    nginx.ingress.kubernetes.io/proxy-body-size: "64k"
+  # Do NOT enable a Cloudflare challenge, Bot Fight Mode or Access on this
+  # host: fetch() from the Telegram webview cannot solve a challenge, and the
+  # Mini App would fail with no visible reason.
+
+networkPolicy:
+  # Pods allowed to call the internal API: n8n's main process only. inboxd,
+  # silerod and renderd Jobs share the namespace and have no business here.
+  n8n:
+    namespace: n8n
+    podLabels:
+      app.kubernetes.io/name: n8n
+    # approvald -> n8n webhook (dispatch)
+    port: 5678
+  ingressNamespace: ingress-nginx
+  monitoringNamespace: monitoring
+  # tutor-postgres on dkr01
+  postgres:
+    cidr: 10.164.1.105/32
+    port: 55432
+  # nodelocaldns (kubespray): pods resolve through this link-local address.
+  nodeLocalDns: 169.254.25.10/32
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 96Mi
+  limits:
+    memory: 256Mi
+
+tmp:
+  sizeLimit: 64Mi
+
+# Secret values live in secrets.yaml (SOPS, helm-secrets), under `secrets`:
+#   secrets.env.APPROVALD_BOT_TOKEN        the approvals bot (owner inserts)
+#   secrets.env.APPROVALD_N8N_TOKEN        n8n -> approvald, X-Approvald-Token
+#   secrets.env.APPROVALD_DISPATCH_TOKEN   approvald -> n8n webhook, header auth
+#   secrets.env.APPROVALD_DB_URL           postgresql://approvald:...@10.164.1.105:55432/approvald
+#   secrets.env.APPROVALD_ALLOWED_IDS      the owner's Telegram user id
+#   secrets.env.APPROVALD_CHAT_ID          chat for the one summary message
+#   secrets.dockerconfigjson               pull secret for ghcr.io/nazmang
+# Left empty here on purpose: templates/secrets.yaml fails the render, naming
+# what is missing, rather than create an empty Secret.
+secrets: {}
+
+monitoring:
+  serviceMonitor:
+    enabled: true
+    port: http
+    path: /metrics
+    labels:
+      release: prometheus
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: Approvald
+    ingress:
+      enabled: true
+      host: approve.srvx.cc
+      slowResponseSeconds: 2

@@ -1,0 +1,79 @@
+{{- /*
+  Calico enforces NetworkPolicy in this cluster. Default deny both ways for
+  approvald's pod, then exactly what the spec needs:
+
+  in   8080  from ingress-nginx (the Mini App) and monitoring (scrapes)
+  in   8081  from n8n's main pod only
+  out  DNS (nodelocaldns, coredns), Postgres on dkr01, n8n's webhook port,
+       and HTTPS to the internet for api.telegram.org
+
+  Plain NetworkPolicy cannot name a host, so "Telegram" is 443 to any public
+  address. Private ranges are excluded from it, so the pod still cannot reach
+  anything internal over 443 that is not listed above.
+*/}}
+{{- $np := .Values.networkPolicy }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "approvald.fullname" . }}
+  labels:
+    {{- include "approvald.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "approvald.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.monitoringNamespace }}
+      ports:
+        - port: http
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.n8n.namespace }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $np.n8n.podLabels | nindent 14 }}
+      ports:
+        - port: internal
+          protocol: TCP
+  egress:
+    - to:
+        - ipBlock:
+            cidr: {{ $np.nodeLocalDns }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: {{ $np.postgres.cidr }}
+      ports:
+        - { port: {{ $np.postgres.port }}, protocol: TCP }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $np.n8n.namespace }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $np.n8n.podLabels | nindent 14 }}
+      ports:
+        - { port: {{ $np.n8n.port }}, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
+      ports:
+        - { port: 443, protocol: TCP }

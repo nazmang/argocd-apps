@@ -1,0 +1,38 @@
+{{- /*
+  Two Services so that each port has exactly one way in. The public one is
+  what the ingress and the ServiceMonitor use; the internal one is what n8n
+  calls. Neither is reachable from outside the cluster, and the NetworkPolicy
+  decides who inside may use which port.
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "approvald.fullname" . }}
+  labels:
+    {{- include "approvald.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "approvald.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.ports.public }}
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # n8n calls http://approvald-internal.approvald.svc:8081/v1/topics
+  name: {{ include "approvald.fullname" . }}-internal
+  labels:
+    {{- include "approvald.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "approvald.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: internal
+      port: {{ .Values.ports.internal }}
+      targetPort: internal
+      protocol: TCP
