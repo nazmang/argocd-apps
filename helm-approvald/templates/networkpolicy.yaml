@@ -9,6 +9,12 @@
   out  DNS (nodelocaldns, coredns), Postgres on dkr01, n8n's webhook port,
        and HTTPS to the internet for api.telegram.org
 
+  The other side: namespace n8n has no NetworkPolicy (checked 2026-10-11), so
+  n8n -> approvald:8081 and approvald -> n8n:5678 are open from there. If n8n's
+  namespace is ever closed, it needs egress to namespace approvald on 8081 and
+  ingress from it on 5678 -- otherwise enqueue falls back to the old Approve
+  card and dispatch times out, both silently.
+
   Plain NetworkPolicy cannot name a host, so "Telegram" is 443 to any public
   address. Private ranges are excluded from it, so the pod still cannot reach
   anything internal over 443 that is not listed above.
