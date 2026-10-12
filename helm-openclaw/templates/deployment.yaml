@@ -95,6 +95,10 @@ spec:
               {{- if .Values.sandboxIngress.enabled }}
               openclaw config set mcp.apps.sandboxOrigin 'https://{{ .Values.sandboxIngress.host }}'
               {{- end }}
+              # calendar.add is "privacy-heavy": the gateway drops it from the
+              # phone node's command surface unless allowed here (owner
+              # decision 2026-10-12: the agent may add calendar events).
+              openclaw config set gateway.nodes.commands.allow --strict-json '["calendar.add"]'
               openclaw config set plugins.entries.device-pair.enabled true
               openclaw config set plugins.entries.device-pair.config.publicUrl '{{ .Values.env.publicUrl }}'
               openclaw config set agents.defaults.model.primary '{{ .Values.env.model }}'

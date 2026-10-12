@@ -132,8 +132,10 @@ env:
     # tts.providers.openrouter. ElevenLabs needs its own voice id (the
     # provider default af_alloy is a kokoro voice and is rejected); this is the
     # premade "George". Gemini TTS was rejected: it only returns pcm.
+    # 2026-10-12: flash-v2.5 instead of multilingual-v2 -- half the price per
+    # character, same voice, 2x faster; Russian TTS -> STT verified word for word.
     tts:
-      model: elevenlabs/eleven-multilingual-v2
+      model: elevenlabs/eleven-flash-v2.5
       speakerVoice: JBFqnCBsd6RMkjVDRZzb
       responseFormat: mp3
 
