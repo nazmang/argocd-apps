@@ -246,6 +246,14 @@ spec:
             - name: data
               mountPath: /home/node/.config/openclaw
               subPath: openclaw-config
+            # 2026.9.9 publishes chat attachments with an atomic no-replace
+            # rename (renameat2 RENAME_NOREPLACE). The NFS PVC rejects it with
+            # EINVAL ("native no-replace move is unavailable on this
+            # filesystem"), so every voice note / file sent from the app
+            # failed. Media is transient (the backend keeps documents in
+            # MinIO), so it lives on node-local disk and is lost on restart.
+            - name: media
+              mountPath: /home/node/.openclaw/media
           livenessProbe:
             httpGet:
               path: /healthz
@@ -265,6 +273,9 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "openclaw.fullname" . }}
+        - name: media
+          emptyDir:
+            sizeLimit: 2Gi
 {{- if .Values.healthPlugin.enabled }}
         - name: plugin-src
           emptyDir: {}
