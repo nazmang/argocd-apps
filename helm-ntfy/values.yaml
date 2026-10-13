@@ -70,6 +70,8 @@ config:
     - "ntfyuser:alters*:read-only"
     - "alertmgr:cloud-k8s:read-write"
     - "alertmgr:alters*:read-write"
+    # duty: the on-call Claude session (Haiku) listens to alerts, never publishes
+    - "duty:cloud-k8s:read-only"
   # Each entry: "username:token[:label]"
   # authTokens: []
   # webPushFile: "/var/lib/ntfy/webpush.db"
