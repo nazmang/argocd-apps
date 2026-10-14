@@ -75,9 +75,9 @@ server:
 
   dataStorage:
     enabled: true # Enables persistent storage for Vault data (required for HA and production use).
-    storageClass: "nfs-client" # Storage class for PersistentVolumeClaim.
+    storageClass: "proxmox-lvm" # Proxmox CSI (ADR-0007): Raft on NFS is not safe. Retain.
     accessMode: ReadWriteOnce # PVC access mode (ReadWriteOnce is enough for Raft).
-    size: 10Gi # Storage size for Vault data.
+    size: 2Gi # Raft data was 1.7 MB on 2026-10-14; LVM-thin, grows by PVC resize.
 
   # DEAD CONFIG -- the chart has no `server.config` key and ignores this whole
   # block. So does `server.tls` above it. That is why Vault runs with
@@ -193,8 +193,8 @@ server:
 
   auditStorage:
     enabled: true # Enables Vault audit logs (must be configured in Vault after deployment).
-    size: 10Gi # Storage size for audit logs.
-    storageClass: "nfs-client" # Storage class for audit log PVC.
+    size: 2Gi # Storage size for audit logs (empty on 2026-10-14: no audit device enabled).
+    storageClass: "proxmox-lvm" # Proxmox CSI (ADR-0007). Retain.
     accessMode: ReadWriteOnce # PVC access mode for audit logs.
 
   networkPolicy:
