@@ -18,7 +18,8 @@ env:
 
 persistence:
   enabled: true
-  storageClass: nfs-client
+  # Proxmox CSI (ADR-0007): Retain, LVM-thin on pve01.
+  storageClass: proxmox-lvm
   accessModes:
     - ReadWriteOnce
   size: 1Gi
