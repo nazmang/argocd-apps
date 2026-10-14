@@ -6,6 +6,12 @@ metadata:
     {{- include "apprise.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  {{- if .Values.persistence.enabled }}
+  # RWO volume (proxmox-lvm): the new pod cannot attach it while the old one
+  # still holds it, so a rolling update would hang.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "apprise.selectorLabels" . | nindent 6 }}
