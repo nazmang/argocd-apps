@@ -14,6 +14,30 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+  # The chart fills empty secrets with randAlphaNum and keeps the old values
+  # through `lookup`, which returns nothing under Argo CD. Every re-render
+  # (any commit to this repo) made new values, rewrote the Secrets and rolled
+  # the Deployment through checksum/* annotations: 600+ revisions, and a new
+  # accesskeyEncryption each time breaks access keys stored in Semaphore.
+  # Keep what is in the cluster instead.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: ansible-semaphore-general
+      jsonPointers:
+        - /data
+    - group: ""
+      kind: Secret
+      name: ansible-semaphore-runner
+      jsonPointers:
+        - /data
+    - group: apps
+      kind: Deployment
+      name: ansible-semaphore
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1secret-general
+        - /spec/template/metadata/annotations/checksum~1secret-runner
   sources:
     - repoURL: "https://cloudhippie.github.io/charts"
       chart: ansible-semaphore
