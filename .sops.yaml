@@ -62,11 +62,11 @@ creation_rules:
     encrypted_regex: ^(OPENROUTER_API_KEY|GEMINI_API_KEY|NANOBANANA_API_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY|PLUGGIO_BRIDGE__TOKEN|PLUGGIO_ACCESS__TEAM|PLUGGIO_ACCESS__AUD|PLUGGIO_ACCESS__OWNERS|PLUGGIO_ACCESS__BRIDGE_CLIENT_ID|PLUGGIO_LLM__OPENAI_COMPAT__BASE_URL|PLUGGIO_LLM__OPENAI_COMPAT__MODEL|dockerconfigjson)$
 
   # approvald (bg-coast-news topic approval queue). The owner's Telegram id and
-  # the chat id are encrypted too: not credentials, but personal identifiers,
+  # the notify chat id are encrypted too: not credentials, but personal identifiers,
   # and this repository is public.
   - path_regex: helm-approvald/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(APPROVALD_BOT_TOKEN|APPROVALD_N8N_TOKEN|APPROVALD_DISPATCH_TOKEN|APPROVALD_DB_URL|APPROVALD_ALLOWED_IDS|APPROVALD_CHAT_ID|dockerconfigjson)$
+    encrypted_regex: ^(APPROVALD_BOT_TOKEN|APPROVALD_N8N_TOKEN|APPROVALD_DISPATCH_TOKEN|APPROVALD_DB_URL|APPROVALD_ALLOWED_IDS|APPROVALD_NOTIFY_CHAT_ID|dockerconfigjson)$
 
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
