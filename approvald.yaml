@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: approvald
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/nazmang/argocd-apps.git
+    targetRevision: main
+    path: helm-approvald
+    helm:
+      releaseName: approvald
+      valueFiles:
+        - values.yaml
+        # SOPS-encrypted, decrypted by helm-secrets on argocd-repo-server.
+        # Single-source on purpose: the secrets:// prefix cannot follow a $ref.
+        - secrets://secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    # Its own namespace, not n8n's: n8n's service account may create Jobs in
+    # namespace n8n (renderd), and such a Job can mount any Secret there. The
+    # bot token does not belong within that reach.
+    namespace: approvald
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  info:
+    - name: purpose
+      value: "Web approval queue for bg-coast-news topics (Telegram Mini App) at https://approve.srvx.cc/app"
+    # Apply this file only once helm-approvald/secrets.yaml exists (the bot
+    # token is the owner's to insert) and image.tag points at a built image.
+    # Until then the chart refuses to render, on purpose.

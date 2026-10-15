@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "approvald.fullname" . }}
+  labels:
+    {{- include "approvald.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # One writer of the summary message and of the outbox. Two pods side by side
+  # during a rollout would both dispatch and both edit the message.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "approvald.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "approvald.labels" . | nindent 8 }}
+      annotations:
+        # envFrom is resolved at pod creation; roll the pod when a key changes.
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      # Talks to Telegram, Postgres and n8n -- never to the Kubernetes API.
+      automountServiceAccountToken: false
+      # Service links would inject APPROVALD_PORT=tcp://... into the env, the
+      # same collision that crashed renderd 0.2.0.
+      enableServiceLinks: false
+      imagePullSecrets:
+        - name: {{ include "approvald.fullname" . }}-ghcr
+      containers:
+        - name: approvald
+          # {{ .Values.image.tag }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.ports.public }}
+              protocol: TCP
+            - name: internal
+              containerPort: {{ .Values.ports.internal }}
+              protocol: TCP
+          env:
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "approvald.fullname" . }}-secrets
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          # /healthz checks the database and answers 503 while Postgres is
+          # down. Right for readiness (stop sending traffic), wrong for
+          # liveness: restarting the pod does not bring the database back, it
+          # only adds a crash loop. Liveness asks the one question a restart
+          # can fix -- is the process still accepting connections.
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmp.sizeLimit }}

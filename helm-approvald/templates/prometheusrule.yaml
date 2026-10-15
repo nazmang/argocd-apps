@@ -1,0 +1,71 @@
+{{- /*
+  What the baseline in monitoring.yaml cannot see: the inside of approvald.
+  Metric names and label values are the image's (approvald/metrics.py,
+  approvald/README.md in bg-coast-news, 0.1.1).
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    release: prometheus
+spec:
+  groups:
+    - name: {{ .Release.Name }}
+      rules:
+        - alert: ApprovaldScrapeFailing
+          # The pod can be Running and Ready (its probe is on the public port)
+          # while the internal port behind /metrics has stopped answering --
+          # and that port is also n8n's way in.
+          expr: up{job="{{ .Release.Name }}-internal"} == 0
+          for: 5m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald internal port is not answering"
+            description: "Prometheus cannot read /metrics on :8081. n8n's /v1 calls go to the same port: new topics fall back to the old Approve card."
+
+        - alert: ApprovaldDispatchFailed
+          # The owner approved and nothing will happen: approvald gave up after
+          # five attempts. The topic is red in the UI, but nobody looks at the
+          # UI after tapping approve.
+          expr: sum(increase(approvald_dispatch_total{status="failed"}[1h])) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald: an approved topic was not dispatched to n8n"
+            description: "dispatch_failed after all retries. Check the approvald-dispatch webhook in n8n."
+
+        - alert: ApprovaldClaimedNoExecution
+          # n8n's webhook claimed the topic (took its payload) but did not
+          # confirm starting 01-monitoring: the draft may never be written.
+          expr: sum(increase(approvald_dispatch_total{status="claimed_no_exec"}[1h])) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald: n8n claimed a topic but did not start the draft"
+            description: "Look for the topic's execution in 01-monitoring; if there is none, the approval was lost after claim."
+
+        - alert: ApprovaldInitDataRejected
+          # Reasons that a genuine owner session does not produce: a forged or
+          # broken signature, a foreign Telegram user, a blocked IP. "expired"
+          # and "future" are left out -- an app left open for an hour, or a
+          # phone clock off, produce them legitimately. More than a handful in
+          # ten minutes is someone probing, or a bot token that no longer
+          # matches (rotated in BotFather, not here).
+          expr: |
+            sum(increase(approvald_auth_failures_total{reason=~"bad_hash|no_hash|malformed|forbidden|ip_blocked"}[10m])) > 5
+          for: 0m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald rejects UI requests"
+            description: "Signature, user or IP checks failing on approve.srvx.cc. See approvald_auth_failures_total by reason."
