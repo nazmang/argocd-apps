@@ -17,6 +17,10 @@ env:
   TZ: Europe/Athens
   # gunicorn defaults to one worker per node CPU; 9 workers hit the 512Mi limit (OOMKilled)
   APPRISE_WORKER_COUNT: 2
+  # Only ntfy may be notified. Stateless /notify/ takes any urls= from the caller,
+  # so without this the service relays to any of Apprise's 100+ services --
+  # proved by a pentest on 15.10.2026 (json://postman-echo.com went out).
+  APPRISE_ALLOW_SERVICES: "ntfy, ntfys"
 
 persistence:
   enabled: true
@@ -30,8 +34,12 @@ service:
   type: ClusterIP
   port: 8000
 
+# Not published any more (16.10.2026). apprise.srvx.cc had no auth and no
+# legitimate callers: in 72 h the only requests were a pentest and internet
+# scanners (/cgi-bin, /aspadmin). Uptime Kuma notifies through the apprise CLI
+# bundled in its own image, not this API. In-cluster: apprise.apprise.svc:8000.
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations: 
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
@@ -96,6 +104,6 @@ monitoring:
       - name: apprise
         container: apprise
     ingress:
-      enabled: true
+      enabled: false  # no ingress, see above
       host: apprise.srvx.cc
       slowResponseSeconds: 5
