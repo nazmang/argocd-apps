@@ -21,7 +21,6 @@ Application manifest name, then its `metadata.name`, chart source, and the
 | Application manifest | Chart source | Namespace |
 |---|---|---|
 | `ansible-semaphore.yaml` | upstream (`cloudhippie/ansible-semaphore`) + `helm-ansible-semaphore/semaphore` | `semaphore` |
-| `apprise.yaml` | `helm-apprise/` | `apprise` |
 | `gateway-api.yaml` (name: `gateway-api-app`) | upstream (`appscode/gateway-api`) | `kube-system` |
 | `kyverno.yaml` | upstream (`kyverno/kyverno`) | `kyverno` |
 | `mailhog.yaml` | upstream (`codecentric/mailhog`) + `helm-mailhog/` values | `mailhog` |

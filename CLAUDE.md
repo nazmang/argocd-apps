@@ -175,7 +175,7 @@ Duplicating a baseline alert in a chart's own rule file means two notifications
 for one event and two places to change a threshold.
 
 Charts whose app exposes no metrics (`helm-openclaw`, `helm-anamnestic-claw`,
-`helm-tutor`, `helm-apprise`, `helm-ntfy-alertmanager`) set
+`helm-tutor`, `helm-ntfy-alertmanager`) set
 `serviceMonitor.enabled: false` **with a comment saying why** — the next person
 should see a decision, not an omission.
 
