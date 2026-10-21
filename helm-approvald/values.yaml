@@ -23,8 +23,8 @@ image:
   # digest cannot. The tag is kept next to it for humans and is not used to
   # pull. Both empty until the reviewed image is built -- the chart refuses to
   # render without a digest. Do not reuse a digest from before the review fixes.
-  tag: "0.1.1"
-  digest: "sha256:257d51980d63895fc48914d307f1c1fd01625dbffd0f332e6df0f848ceb72468"
+  tag: "0.2.0"
+  digest: "sha256:2aa5be0c8cdec7b93073d5cbde1bc7b3ad4eb2d28a16c4695a6c4440a674cfff"
   pullPolicy: IfNotPresent
 
 ports:
