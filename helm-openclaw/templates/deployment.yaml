@@ -121,6 +121,10 @@ spec:
               openclaw config set tools.media.audio.language '{{ .Values.env.voice.audioLanguage }}'
               openclaw config set tools.media.models --strict-json '{{ .Values.env.voice.audioModels | toJson }}'
               openclaw config set tools.media.audio.preferredModel '{{ .Values.env.voice.audioPreferredModel }}'
+              # Tool Search hides core tool schemas (automations etc.) behind
+              # tool_call; DeepSeek then guesses fields and passes args as a
+              # string. Direct schemas instead (2026-10-21).
+              openclaw config set tools.toolSearch false
               # auto=inbound: speak only in reply to a voice message, text to
               # text. The legacy tts.enabled=true set here until 2026-09-29
               # migrates to auto=always and voiced every text reply too, so it
