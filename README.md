@@ -23,7 +23,6 @@ Application manifest name, then its `metadata.name`, chart source, and the
 | `ansible-semaphore.yaml` | upstream (`cloudhippie/ansible-semaphore`) + `helm-ansible-semaphore/semaphore` | `semaphore` |
 | `gateway-api.yaml` (name: `gateway-api-app`) | upstream (`appscode/gateway-api`) | `kube-system` |
 | `kyverno.yaml` | upstream (`kyverno/kyverno`) | `kyverno` |
-| `mailhog.yaml` | upstream (`codecentric/mailhog`) + `helm-mailhog/` values | `mailhog` |
 | `minio.yaml` (name: `minio-operator`) | upstream (`minio/operator`, both the operator and tenant paths) + `helm-minio/` values | `minio-operator` |
 | `n8n.yaml` | `helm-n8n/` | `n8n` |
 | `ntfy.yaml` | `helm-ntfy/` | `ntfy` |
