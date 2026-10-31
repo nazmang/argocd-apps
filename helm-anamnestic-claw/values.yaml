@@ -102,6 +102,8 @@ gateIngress:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     # По IP клиента (CF-Connecting-IP); скрипт спрашивает раз в несколько минут.
     nginx.ingress.kubernetes.io/limit-rpm: "30"
+    # Без этого nginx пускает пачку до 5×30 запросов, прежде чем ответить 503.
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "1"
     # У GET тела нет.
     nginx.ingress.kubernetes.io/proxy-body-size: "1k"
 
