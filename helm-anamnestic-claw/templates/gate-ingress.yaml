@@ -1,0 +1,30 @@
+{{- /*
+  Наружу — один путь: GET /gate/generation для pause.py на большом ПК
+  (спека anamnestic-claw 2026-10-28-urge-protocol-and-daily-fields-design.md §5).
+  Остальной API бэкенда снаружи недоступен: pathType Exact, другого правила нет.
+*/}}
+{{- if .Values.gateIngress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "anamnesticClaw.fullname" . }}-gate
+  labels:
+    {{- include "anamnesticClaw.labels" . | nindent 4 }}
+  {{- with .Values.gateIngress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.gateIngress.className }}
+  rules:
+    - host: {{ .Values.gateIngress.host }}
+      http:
+        paths:
+          - path: /gate/generation
+            pathType: Exact
+            backend:
+              service:
+                name: {{ include "anamnesticClaw.fullname" . }}
+                port:
+                  name: http
+{{- end }}

@@ -42,6 +42,20 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secretName }}
                   key: API_BEARER_TOKEN
+            # Гейт генерации (pause.py на большом ПК): свой токен открывает только
+            # GET /gate/generation. Без ключа в Secret гейт выключен (404).
+            - name: GATE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: GATE_TOKEN
+                  optional: true
+            - name: GATE_USER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: GATE_USER_ID
+                  optional: true
             {{- if .Values.documents.enabled }}
             - name: DOCUMENTS_S3_BUCKET
               value: {{ .Values.documents.bucket | quote }}

@@ -88,6 +88,23 @@ persistence:
 env:
   databasePath: /data/health.db
 
+# Гейт генерации: pause.py на большом ПК спрашивает «можно ли запускать».
+# Токен GATE_TOKEN и GATE_USER_ID — в secrets.yaml. TLS — на краю Cloudflare
+# (Universal SSL: один уровень под srvx.cc), туннель ведёт *.srvx.cc на ingress-nginx.
+gateIngress:
+  enabled: true
+  className: nginx
+  host: health-gate.srvx.cc
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: health-gate.srvx.cc
+    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # По IP клиента (CF-Connecting-IP); скрипт спрашивает раз в несколько минут.
+    nginx.ingress.kubernetes.io/limit-rpm: "30"
+    # У GET тела нет.
+    nginx.ingress.kubernetes.io/proxy-body-size: "1k"
+
 resources:
   limits:
     cpu: "1"
