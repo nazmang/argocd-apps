@@ -1,7 +1,8 @@
 {{- /*
-  Наружу — один путь: GET /gate/generation для pause.py на большом ПК
-  (спека anamnestic-claw 2026-10-28-urge-protocol-and-daily-fields-design.md §5).
-  Остальной API бэкенда снаружи недоступен: pathType Exact, другого правила нет.
+  Наружу — два пути для скриптов на большом ПК: GET /gate/generation (pause.py, спека
+  anamnestic-claw 2026-10-28-urge-protocol-and-daily-fields-design.md §5) и POST /gate/sessions
+  (ask.py, спека 2026-10-31-alcohol-sexuality-design.md §4). Остальной API снаружи недоступен:
+  pathType Exact, других правил нет.
 */}}
 {{- if .Values.gateIngress.enabled }}
 apiVersion: networking.k8s.io/v1
@@ -21,6 +22,13 @@ spec:
       http:
         paths:
           - path: /gate/generation
+            pathType: Exact
+            backend:
+              service:
+                name: {{ include "anamnesticClaw.fullname" . }}
+                port:
+                  name: http
+          - path: /gate/sessions
             pathType: Exact
             backend:
               service:
