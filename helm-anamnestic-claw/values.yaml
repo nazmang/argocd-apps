@@ -100,11 +100,11 @@ gateIngress:
     external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    # По IP клиента (CF-Connecting-IP); скрипт спрашивает раз в несколько минут.
+    # По IP клиента (CF-Connecting-IP), одна зона на оба пути; скрипты ходят раз в несколько минут.
     nginx.ingress.kubernetes.io/limit-rpm: "30"
     # Без этого nginx пускает пачку до 5×30 запросов, прежде чем ответить 503.
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "1"
-    # У GET тела нет.
+    # У GET тела нет, тело POST /gate/sessions — 4 поля.
     nginx.ingress.kubernetes.io/proxy-body-size: "1k"
 
 resources:
