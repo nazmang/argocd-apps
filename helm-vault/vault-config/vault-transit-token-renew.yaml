@@ -1,0 +1,124 @@
+# Daily renewal of the token the cluster Vault uses against the transit Vault
+# on dkr01 (Secret vault-transit-token, delivered into vault-0 as VAULT_TOKEN
+# by ksops from helm-vault/auto-unseal).
+#
+# Why: the token is renewable but NOT periodic (no `period`, explicit_max_ttl 0),
+# so its TTL is capped by the system max (768h) and dies unless somebody renews
+# it. On 2026-11-02 it was 13 days from expiry and had to be renewed by hand
+# from inside vault-0. An expired token means the next vault-0 restart cannot
+# unseal itself. Renewing resets the TTL to the max, so once a day keeps ~31
+# days of headroom; the alert below fires long before that runs out.
+#
+# This CronJob only REFERENCES the existing Secret -- no secret material here.
+# The token string does not change on renew, so the SOPS copy in git stays valid.
+#
+# Output discipline: `vault token renew` prints the token itself in its default
+# table output, so the response goes into a variable and only lease_duration is
+# ever echoed. Do not "simplify" this to a bare `vault token renew`.
+#
+# A periodic token (never needs this job) would need `vault operator
+# generate-root` on the transit Vault to mint it; see docker-vault-transit/UNSEAL.md.
+# Not done: this CronJob is the cheaper fix.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-transit-token-renew
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-transit-token-renew
+    app.kubernetes.io/part-of: vault
+spec:
+  schedule: "17 3 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 300
+      ttlSecondsAfterFinished: 604800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: vault-transit-token-renew
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: renew
+              # Same image as the vault StatefulSet (vault chart 0.30.1 -> 1.20.1).
+              # Bump together with it.
+              image: hashicorp/vault:1.20.1
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  out="$(vault token renew -format=json)"
+                  lease="$(printf '%s' "$out" | grep -o '"lease_duration":[0-9]*' | head -n1 | cut -d: -f2)"
+                  if [ -z "$lease" ] || [ "$lease" -lt 604800 ]; then
+                    echo "renew returned lease_duration='${lease:-none}' (< 7d): token is not being extended" >&2
+                    exit 1
+                  fi
+                  echo "transit token renewed, ttl ${lease}s ($((lease / 86400))d)"
+              env:
+                - name: VAULT_ADDR
+                  value: http://10.163.11.105:8200
+                - name: VAULT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: vault-transit-token
+                      key: token
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi
+---
+# Silence is how a dead renewal job looks, so it gets its own alert (repo rule:
+# every workload ships its monitoring). Uses kube-state-metrics only.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vault-transit-token-renew
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-transit-token-renew
+    app.kubernetes.io/part-of: vault
+    release: prometheus
+spec:
+  groups:
+    - name: vault-transit-token-renew
+      rules:
+        - alert: VaultTransitTokenRenewFailing
+          expr: |
+            kube_job_status_failed{namespace="vault",job_name=~"vault-transit-token-renew-.*"} > 0
+          for: 5m
+          labels:
+            severity: warning
+            app: vault
+          annotations:
+            summary: "Renewal of the transit-unseal token for the cluster Vault failed"
+            description: "The token expires up to ~31 days after the last good run. Check `kubectl -n vault logs job/<name>` and whether the transit Vault on dkr01 is up and unsealed."
+        - alert: VaultTransitTokenRenewNotRunning
+          expr: |
+            time() - kube_cronjob_status_last_successful_time{namespace="vault",cronjob="vault-transit-token-renew"} > 3 * 86400
+          for: 1h
+          labels:
+            severity: critical
+            app: vault
+          annotations:
+            summary: "No successful transit-token renewal for 3 days"
+            description: "Fix before the token TTL (max 31 days) runs out; otherwise vault-0 cannot auto-unseal after its next restart."
