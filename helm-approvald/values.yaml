@@ -23,8 +23,8 @@ image:
   # digest cannot. The tag is kept next to it for humans and is not used to
   # pull. Both empty until the reviewed image is built -- the chart refuses to
   # render without a digest. Do not reuse a digest from before the review fixes.
-  tag: "0.2.0"
-  digest: "sha256:2aa5be0c8cdec7b93073d5cbde1bc7b3ad4eb2d28a16c4695a6c4440a674cfff"
+  tag: "0.4.0"
+  digest: "sha256:e35e5b6cc64a07e60efa9fccbcdf3aa70e8df9fb7f17b5b6ffb2e6e2e1b8110c"
   pullPolicy: IfNotPresent
 
 ports:
@@ -45,6 +45,14 @@ env:
   # n8n's thin entry workflow (Webhook -> Execute Workflow 01-monitoring).
   # In-cluster on purpose: the decision never leaves the cluster.
   APPROVALD_DISPATCH_URL: "http://n8n.n8n.svc:5678/webhook/approvald-dispatch"
+  # Host for resuming a waiting n8n execution (video cards). scheme://host[:port]
+  # only: the path comes from n8n, the host only from here. Without it
+  # /v1/drafts answers 503 and n8n falls back to the Telegram card. In-cluster,
+  # same egress rule as dispatch. If n8n rejects the resume signature on this
+  # host, the README's fallback is the public URL, which the 443 rule allows.
+  APPROVALD_N8N_RESUME_BASE: "http://n8n.n8n.svc:5678"
+  # The only origin allowed for renderUrl and for CSP media-src. https only.
+  APPROVALD_MEDIA_ORIGIN: "https://bg-coast-assets.srvx.cc"
 
 ingress:
   className: nginx
@@ -80,7 +88,7 @@ networkPolicy:
     namespace: n8n
     podLabels:
       app.kubernetes.io/name: n8n
-    # approvald -> n8n webhook (dispatch)
+    # approvald -> n8n: webhook (dispatch) and resume of waiting executions
     port: 5678
   ingressNamespace: ingress-nginx
   monitoringNamespace: monitoring
