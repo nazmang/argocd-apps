@@ -1,7 +1,7 @@
 {{- /*
   What the baseline in monitoring.yaml cannot see: the inside of approvald.
   Metric names and label values are the image's (approvald/metrics.py,
-  approvald/README.md in bg-coast-news, 0.1.1).
+  approvald/README.md in bg-coast-news, 0.4.0).
 */}}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -69,3 +69,28 @@ spec:
           annotations:
             summary: "approvald rejects UI requests"
             description: "Signature, user or IP checks failing on approve.srvx.cc. See approvald_auth_failures_total by reason."
+
+        - alert: ApprovaldDraftLost
+          # A video card did not reach n8n: resume gave up (resume_failed) or
+          # the execution is gone (orphaned). approvald sends a Telegram alert
+          # only on expiry, so this rule is the only signal for these two.
+          #
+          # The second branch is not decoration. The counter has no series until
+          # its first increment and the pod label is part of the series, so the
+          # first failure after every pod start appears already at 1, and
+          # increase() over a series that starts at 1 returns 0. The branch
+          # catches a series that exists now and did not exist a day ago.
+          expr: |
+            sum by (kind, result) (
+              increase(approvald_drafts_total{result=~"orphaned|resume_failed"}[24h]) > 0
+              or
+              (approvald_drafts_total{result=~"orphaned|resume_failed"}
+                unless approvald_drafts_total{result=~"orphaned|resume_failed"} offset 24h)
+            ) > 0
+          for: 0m
+          labels:
+            severity: warning
+            app: {{ .Release.Name }}
+          annotations:
+            summary: "approvald: video card {{ "{{ $labels.result }}" }} ({{ "{{ $labels.kind }}" }})"
+            description: "A card did not reach n8n in the last 24 hours. resume_failed: Retry is available in the Mini App, check n8n and APPROVALD_N8N_RESUME_BASE. orphaned: the n8n execution is gone, see reconciliation in 01e."
