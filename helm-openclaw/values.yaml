@@ -15,7 +15,7 @@ image:
   tag: "2026.9.9"
   pullPolicy: IfNotPresent
 
-replicaCount: 0
+replicaCount: 1
 
 service:
   type: ClusterIP
@@ -36,7 +36,7 @@ persistence:
     storageClass: proxmox-lvm-luks
     size: 5Gi
   # Какой PVC монтируют Deployment и бэкап: {{ fullname }} или {{ fullname }}-encrypted.
-  claimSuffix: ""
+  claimSuffix: "-encrypted"
 
 env:
   tz: UTC
