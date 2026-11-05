@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/nazmang/pluggio
-  tag: "03f0c56"
+  tag: "a357265"
   pullPolicy: IfNotPresent
 
 service:
@@ -33,7 +33,7 @@ resources:
     memory: 384Mi
   limits:
     cpu: "1"
-    memory: 1Gi
+    memory: 1536Mi
 
 securityContext:
   runAsNonRoot: true
