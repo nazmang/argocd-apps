@@ -281,7 +281,7 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "openclaw.fullname" . }}
+            claimName: {{ include "openclaw.fullname" . }}{{ .Values.persistence.claimSuffix }}
         - name: media
           emptyDir:
             medium: Memory

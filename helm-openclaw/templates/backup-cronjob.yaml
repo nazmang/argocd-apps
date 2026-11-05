@@ -137,7 +137,7 @@ spec:
           volumes:
             - name: home
               persistentVolumeClaim:
-                claimName: {{ include "openclaw.fullname" . }}
+                claimName: {{ include "openclaw.fullname" . }}{{ .Values.persistence.claimSuffix }}
             - name: backup
               persistentVolumeClaim:
                 claimName: {{ include "openclaw.fullname" . }}-backup
