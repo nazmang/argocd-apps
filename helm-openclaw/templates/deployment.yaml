@@ -259,7 +259,8 @@ spec:
             # EINVAL ("native no-replace move is unavailable on this
             # filesystem"), so every voice note / file sent from the app
             # failed. Media is transient (the backend keeps documents in
-            # MinIO), so it lives on node-local disk and is lost on restart.
+            # MinIO), so it lives in RAM (tmpfs): nothing reaches the node disk,
+            # lost on restart, counted against the pod memory limit.
             - name: media
               mountPath: /home/node/.openclaw/media
           livenessProbe:
@@ -283,7 +284,8 @@ spec:
             claimName: {{ include "openclaw.fullname" . }}
         - name: media
           emptyDir:
-            sizeLimit: 2Gi
+            medium: Memory
+            sizeLimit: 256Mi
 {{- if .Values.healthPlugin.enabled }}
         - name: plugin-src
           emptyDir: {}
