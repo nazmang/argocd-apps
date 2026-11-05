@@ -76,6 +76,12 @@ spec:
                 secretKeyRef:
                   name: {{ include "anamnesticClaw.fullname" . }}-documents-minio
                   key: s3-secret
+            # Мастер-ключ содержимого: без него документы отдают 503 (app/object_crypto.py).
+            - name: DOCUMENTS_KEK
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "anamnesticClaw.fullname" . }}-documents-minio
+                  key: documents-kek
             {{- end }}
           volumeMounts:
             - name: data

@@ -22,6 +22,7 @@ spec:
         # needs a second source, drop the prefix and list the file as
         # $values/helm-anamnestic-claw/secrets.yaml instead.
         - secrets://secrets.yaml
+        - secrets://secrets-documents.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: anamnestic-claw

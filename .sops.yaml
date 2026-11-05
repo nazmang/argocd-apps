@@ -96,6 +96,12 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(OPENCLAW_GATEWAY_TOKEN|BACKEND_TOKEN|ANTHROPIC_API_KEY|DEEPSEEK_API_KEY|OPENAI_API_KEY|OPENROUTER_API_KEY)$
 
+  # Мастер-ключ содержимого документов (app/object_crypto.py). Отдельный файл: основной
+  # secrets.yaml хранит старый encrypted_regex в своих метаданных.
+  - path_regex: helm-anamnestic-claw/secrets-documents\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(documents-kek)$
+
   - path_regex: helm-anamnestic-claw/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(SQLCIPHER_KEY|API_BEARER_TOKEN|GATE_TOKEN|GATE_USER_ID|s3-key|s3-secret)$
