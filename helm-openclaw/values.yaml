@@ -257,3 +257,22 @@ monitoring:
     workloads:
       - name: openclaw
         container: openclaw
+
+# Бэкап шифротекстом age на отдельный PVC (templates/backup-cronjob.yaml, ADR-0010).
+# Ключ открытый; закрытый только у Жени в KeePassXC.
+backup:
+  enabled: true
+  schedule: "0 1 * * *"
+  ageRecipient: age1trslehsghglhw3wchj9v5re4lzl06gt5r8ancn74v8vnzmd4ly6q2lqfjm
+  ageImage: nazman/openclaw-age:1.2.1
+  storageClass: nfs-client
+  size: 3Gi
+  snapshotSize: 512Mi
+  retentionDays: 3
+  staleAfterHours: 36
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 768Mi

@@ -1,0 +1,148 @@
+{{- /*
+  Бэкап OpenClaw: шифротекст age на отдельном PVC (ADR-0010, раздел «Пересмотр»).
+
+  Открытых файлов на NFS нет: снимок лежит в tmpfs пода, наружу выходит только
+  `tar | age`. Закрытый ключ только у Жени, поэтому пробное восстановление —
+  его шаг. Контейнер с age не видит том OpenClaw, контейнер со снимком не
+  пишет на том бэкапа.
+
+  Запись на PVC до ночного PBS (02:30 по Софии): хранение здесь короткое,
+  длинное даёт PBS. Том пока NFS, но после переезда на LUKS будет RWO на
+  ноде, поэтому джоб сразу садится к поду OpenClaw.
+*/}}
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "openclaw.fullname" . }}-backup
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.backup.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.backup.size }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "openclaw.fullname" . }}-backup
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  timeZone: Europe/Sofia
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "openclaw.name" . }}-backup
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      {{- include "openclaw.selectorLabels" . | nindent 22 }}
+                  topologyKey: kubernetes.io/hostname
+          initContainers:
+            - name: snapshot
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+              command:
+                - sh
+                - -ec
+                - |
+                  node --no-warnings - <<'JS'
+                  const {DatabaseSync, backup} = require("node:sqlite");
+                  const root = "/src/";
+                  const dbs = {
+                    "agent.sqlite": root + "agents/main/agent/openclaw-agent.sqlite",
+                    "state.sqlite": root + "state/openclaw.sqlite",
+                  };
+                  (async () => {
+                    for (const [name, path] of Object.entries(dbs)) {
+                      const src = new DatabaseSync(path, {readOnly: true, timeout: 30000});
+                      await backup(src, "/snapshot/" + name);
+                      src.close();
+                      const check = new DatabaseSync("/snapshot/" + name, {readOnly: true});
+                      const ok = check.prepare("pragma integrity_check").get().integrity_check;
+                      check.close();
+                      if (ok !== "ok") throw new Error(name + ": " + ok);
+                      console.log("snapshot ok", name);
+                    }
+                  })().catch((err) => { console.error(err); process.exit(1); });
+                  JS
+                  tar -C /src -cf /snapshot/files.tar \
+                    --exclude='./media' --exclude='./cache' --exclude='./npm' --exclude='./tmp' \
+                    --exclude='./logs' --exclude='./extensions' --exclude='./backups' \
+                    --exclude='./agents/main/agent/codex-home' \
+                    --exclude='*.sqlite' --exclude='*.sqlite-*' --exclude='*.bak' \
+                    --exclude='*.pre-startup-migration-*' .
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+              volumeMounts:
+                - name: home
+                  mountPath: /src
+                  subPath: openclaw-home
+                  readOnly: true
+                - name: snapshot
+                  mountPath: /snapshot
+          containers:
+            - name: encrypt
+              image: {{ .Values.backup.ageImage | quote }}
+              securityContext:
+                {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+              env:
+                - name: AGE_RECIPIENT
+                  value: {{ required "backup.ageRecipient" .Values.backup.ageRecipient | quote }}
+                - name: RETENTION_DAYS
+                  value: {{ .Values.backup.retentionDays | quote }}
+              command:
+                - sh
+                - -euc
+                - |
+                  name="openclaw-$(date -u +%Y%m%dT%H%M%SZ).tar.age"
+                  tar -C /snapshot -cf - . | age -r "$AGE_RECIPIENT" -o "/backup/$name.part"
+                  # Заголовок age и ненулевой размер: иначе зелёный джоб при пустом файле.
+                  [ "$(head -c 21 "/backup/$name.part")" = "age-encryption.org/v1" ]
+                  [ "$(wc -c < "/backup/$name.part")" -gt 1048576 ]
+                  mv "/backup/$name.part" "/backup/$name"
+                  find /backup -maxdepth 1 -name 'openclaw-*.tar.age*' -mtime "+$RETENTION_DAYS" -delete
+                  ls -l /backup
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+              volumeMounts:
+                - name: snapshot
+                  mountPath: /snapshot
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+          volumes:
+            - name: home
+              persistentVolumeClaim:
+                claimName: {{ include "openclaw.fullname" . }}
+            - name: backup
+              persistentVolumeClaim:
+                claimName: {{ include "openclaw.fullname" . }}-backup
+            - name: snapshot
+              emptyDir:
+                medium: Memory
+                sizeLimit: {{ .Values.backup.snapshotSize }}
+{{- end }}
