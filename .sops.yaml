@@ -68,6 +68,12 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(APPROVALD_BOT_TOKEN|APPROVALD_N8N_TOKEN|APPROVALD_DISPATCH_TOKEN|APPROVALD_DB_URL|APPROVALD_ALLOWED_IDS|APPROVALD_NOTIFY_CHAT_ID|dockerconfigjson)$
 
+  # voice (shared speech services): only the GHCR pull credential for the
+  # private silerod image, copied from helm-n8n's ghcrRenderd (same PAT).
+  - path_regex: helm-voice/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(dockerconfigjson)$
+
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
   # data key is literally named "vault-init.yaml" (kubectl create secret

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: voice
+description: Shared speech services - Silero TTS (silerod) and Wyoming STT (faster-whisper) for n8n and Home Assistant
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: voice
+  namespace: argocd
+spec:
+  project: local
+  source:
+    repoURL: https://github.com/nazmang/argocd-apps.git
+    targetRevision: main
+    path: helm-voice
+    helm:
+      releaseName: voice
+      valueFiles:
+        - values.yaml
+        # Decrypted by helm-secrets on argocd-repo-server; keep single-source.
+        - secrets://secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: voice
+  # Manual sync while this is a draft; automated once voice-03c is done.
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
