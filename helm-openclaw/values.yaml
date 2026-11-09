@@ -105,9 +105,39 @@ env:
   # anything trimmed it, re-reading all of it (cache) on every message. 300kb of
   # visible transcript triggers a summary -- roughly 60-80k tokens -- and
   # notifyUser shows "Compacting context..." in the chat when it happens.
+  # 2026-11-09: 300kb -> 100kb. DeepInfra keeps the DeepSeek prompt cache for
+  # minutes only; after a >30 min pause 16 of 17 calls missed and resent the
+  # whole ~64k-token session uncached (~3/4 of uncached input). 100kb keeps
+  # the session near the fixed prefix plus ~25k tokens of history.
   compaction:
-    maxActiveTranscriptBytes: "300kb"
+    maxActiveTranscriptBytes: "100kb"
     notifyUser: true
+  # Tool and skill catalog sent with every call (2026-11-09). Unset, the
+  # agent got every core tool schema (~74 tools) and 16 bundled skills
+  # (notion, debuggers, clawhub, ...) in the prompt prefix. alsoAllow lists
+  # what the bot actually called in its whole history; anything else stays
+  # out. A missing tool shows up as "unknown tool" -- add it here.
+  tools:
+    profile: minimal
+    alsoAllow:
+      - group:plugins
+      - group:fs
+      - group:runtime
+      - group:web
+      - group:memory
+      - automations
+      - message
+      - pdf
+      - view_image
+      - show_widget
+      - nodes
+      - ask_user
+      - sessions_search
+      - sessions_history
+      - conversations_list
+      - tts
+  skills:
+    allowBundled: [weather]
   # gateway.trustedProxies. 2026.9 answers 403 {"type":"proxy_attribution_required"}
   # to every request that carries X-Forwarded-* headers from an address not
   # listed here -- which is all of them, since everything arrives through
