@@ -47,9 +47,12 @@ silerod:
     ha: baya
     katya: kseniya
   # Measured by Программист 2026-11-09: RSS 0.75 GiB on v5_6_ru.
+  # CPU request 250m, not 1: idle use is ~2m and synthesis bursts up to the
+  # limit. A full core reserved on k8s03 left the Jenkins build agent (pinned
+  # there, 700m) unschedulable on 2026-11-09.
   resources:
     requests:
-      cpu: "1"
+      cpu: 250m
       memory: 1Gi
     limits:
       cpu: "2"
