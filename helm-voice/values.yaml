@@ -45,6 +45,7 @@ silerod:
     news: eugene
     bot: xenia
     ha: baya
+    katya: kseniya
   # Measured by Программист 2026-11-09: RSS 0.75 GiB on v5_6_ru.
   resources:
     requests:
