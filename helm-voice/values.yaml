@@ -133,9 +133,12 @@ vosk:
     pullPolicy: IfNotPresent
   port: 10300
   language: ru
-  # 0 = never correct, higher = correct more (upstream default 0.2).
-  # 0.2 left "приоткрыла шторы" and "в спальня" uncorrected (2026-11-09).
-  correctSentences: 0.5
+  # In wyoming-vosk 1.5.x this is an edit-distance cutoff, not 0..1
+  # (tested in the pod 2026-11-09): 0.2-1 corrected nothing; 5 fixes
+  # "приоткрыла шторы", "в спальня", "на кухни" and leaves "поставь музыку",
+  # "включи радио", "какая погода" alone; 8 already turned "поставь музыку"
+  # into "поставь на паузу".
+  correctSentences: 5
   limitSentences: false
   loadBalancerIP: 10.164.12.62
   resources:
