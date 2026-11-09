@@ -87,9 +87,12 @@ stt:
   beamSize: 1
   # No CPU limit: with limit 3 on a 4-vCPU node CTranslate2 ran 4 threads
   # and got CFS-throttled (2026-11-09, 7 s per short command).
+  # Request stays 1: with 2 the pod was Pending on 2026-11-09 (requested CPU
+  # free: k8s01 1.56, k8s02 1.03, k8s03 0.1 of 3.3). Without a limit it still
+  # bursts to idle CPU, which is what fixed the throttling.
   resources:
     requests:
-      cpu: "2"
+      cpu: "1"
       memory: 1.5Gi
     limits:
       memory: 3Gi
