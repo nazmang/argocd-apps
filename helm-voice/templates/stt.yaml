@@ -1,0 +1,114 @@
+{{- if .Values.stt.enabled }}
+{{- $s := .Values.stt }}
+# Wyoming STT (faster-whisper) for Home Assistant's Assist pipeline "Набу".
+# Replaces the whisper container on debian01, which misheard short commands
+# ("Кроши торм!" for "Открой шторы", 2026-11-09) and is too heavy for that box
+# (incident 2026-09-24). Protocol is raw Wyoming over TCP, no HTTP, no auth -
+# hence the NetworkPolicy.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stt-models
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "stt") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with $s.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $s.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stt
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "stt") | nindent 4 }}
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: {{ $s.loadBalancerIP | quote }}
+spec:
+  # Fixed MetalLB address for Home Assistant at home; NetworkPolicy below
+  # limits who gets in. Local: keep the client source IP for that policy.
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - name: wyoming
+      port: {{ $s.port }}
+      targetPort: wyoming
+      protocol: TCP
+  selector:
+    {{- include "voice.selectorLabels" (dict "root" . "name" "stt") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stt
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "stt") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "voice.selectorLabels" (dict "root" . "name" "stt") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "voice.labels" (dict "root" . "name" "stt") | nindent 8 }}
+    spec:
+      enableServiceLinks: false
+      {{- with $s.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $s.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: stt
+          image: "{{ $s.image.repository }}:{{ $s.image.tag }}"
+          imagePullPolicy: {{ $s.image.pullPolicy }}
+          args:
+            - --model
+            - {{ $s.model | quote }}
+            - --language
+            - {{ $s.language | quote }}
+            - --beam-size
+            - {{ $s.beamSize | quote }}
+            - --uri
+            - "tcp://0.0.0.0:{{ $s.port }}"
+            - --data-dir
+            - /data
+            - --download-dir
+            - /data
+          ports:
+            - name: wyoming
+              containerPort: {{ $s.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: models
+              mountPath: /data
+          # Wyoming has no health endpoint; a TCP check is the best available.
+          # First start downloads the model (~1.5 GB for medium) - 10 minutes.
+          startupProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml $s.resources | nindent 12 }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: stt-models
+{{- end }}

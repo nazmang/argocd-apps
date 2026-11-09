@@ -1,0 +1,57 @@
+# Nothing here has auth, so who can connect is the only control.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: silerod-ingress
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "silerod") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "voice.selectorLabels" (dict "root" . "name" "silerod") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- range .Values.callerNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
+        # Same namespace: the future Wyoming TTS adapter.
+        - podSelector: {}
+      ports:
+        - port: http
+    {{- if .Values.silerod.wyomingPort }}
+    # Home Assistant at home -> Wyoming TTS only.
+    - from:
+        - podSelector: {}
+        {{- range .Values.stt.homeCidrs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        - port: wyoming
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stt-ingress
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "stt") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "voice.selectorLabels" (dict "root" . "name" "stt") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+        {{- range .Values.stt.homeCidrs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        - port: wyoming

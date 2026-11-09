@@ -1,0 +1,199 @@
+{{/*
+  silerod moved here from helm-n8n/templates/silerod.yaml (2026-11-09 draft).
+  Body unchanged except labels and the pull secret name; the history and
+  reasoning stay in the comments below.
+*/}}
+{{- if .Values.silerod.enabled }}
+{{- $s := .Values.silerod }}
+{{/*
+  Own labels, NOT the chart's n8n.labels. Selectors in this namespace match on
+  app.kubernetes.io/name=n8n + instance=n8n: the n8n Service, and the n8n
+  ServiceMonitor. The first version of this file reused those labels and the
+  result, live for ~20 minutes on 2026-09-15, was the silerod pod registered as
+  a second endpoint of Service n8n:5678 -- every other request to the n8n UI
+  answered 404 by a TTS server -- plus Prometheus scraping silerod for
+  /metrics it does not have (N8nDown fired). name=silerod keeps it out of
+  both.
+*/}}
+# silerod: Silero TTS as an in-cluster HTTP service, the draft voice for the
+# video pipeline. Until 2026-09-15 every rework loop before the operator's
+# approval paid ElevenLabs for a voiceover that was then thrown away; the draft
+# now comes from here, free, and ElevenLabs is called once, after approval.
+# Spec: bg-coast-news docs/superpowers/specs/2026-09-15-silero-draft-tts-design.md
+# (the response is the ElevenLabs /with-timestamps shape, so n8n's consumer
+# nodes did not change). Source and image: bg-coast-news/silerod/.
+#
+# Unlike renderd this is a Deployment, not a Job: the model takes tens of
+# seconds to load and a warm process answers a 50-word request in a few
+# seconds on CPU. One replica, Recreate: the weights PVC is RWO and two model
+# processes at 1.5 GiB each during a rollout would be the wrong kind of
+# surprise on these nodes.
+#
+# No auth, on purpose. Only reachable inside the cluster, and the caller is
+# the same n8n that already holds a kube-API token for this namespace - a
+# rogue caller here can burn CPU, not leak anything (the service has no
+# secrets; the pull secret below is the only Secret it touches).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: silerod-models
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "silerod") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with $s.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $s.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: silerod
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "silerod") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ $s.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "voice.selectorLabels" (dict "root" . "name" "silerod") | nindent 4 }}
+---
+{{- if $s.wyomingPort }}
+# Wyoming TTS for Home Assistant at home, on its own MetalLB address so the
+# HTTP API (n8n, health bot) stays cluster-internal.
+apiVersion: v1
+kind: Service
+metadata:
+  name: silerod-wyoming
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "silerod") | nindent 4 }}
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: {{ $s.wyomingLoadBalancerIP | quote }}
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - name: wyoming
+      port: {{ $s.wyomingPort }}
+      targetPort: wyoming
+      protocol: TCP
+  selector:
+    {{- include "voice.selectorLabels" (dict "root" . "name" "silerod") | nindent 4 }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: silerod
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "silerod") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "voice.selectorLabels" (dict "root" . "name" "silerod") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "voice.labels" (dict "root" . "name" "silerod") | nindent 8 }}
+    spec:
+      # Same private ghcr.io namespace as renderd, same PAT (read:packages is
+      # per account, not per package), so the pull secret is shared rather
+      # than duplicated - see renderd-secrets.yaml for where it comes from.
+      imagePullSecrets:
+        - name: {{ $s.imagePullSecret }}
+      # No Service-derived env vars (SILEROD_PORT=tcp://... and friends): the
+      # image reads its settings from SILERO_*, which does not collide today,
+      # but renderd-http.yaml shows what happens the day it does.
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 65534
+      {{- with $s.nodeSelector }}
+      # Same nodes as the render Jobs, for the same reason: k8s01/k8s02 are
+      # the memory-tight ones and this pod holds 1.5-3 GiB permanently.
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: silerod
+          image: "{{ $s.image.repository }}:{{ $s.image.tag }}"
+          imagePullPolicy: {{ $s.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: {{ $s.port }}
+              protocol: TCP
+            {{- if $s.wyomingPort }}
+            - name: wyoming
+              containerPort: {{ $s.wyomingPort }}
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: SILERO_MODELS_DIR
+              value: /models
+            - name: TORCH_HOME
+              value: /models/torch
+            - name: SILERO_MODEL
+              value: {{ $s.model | quote }}
+            # Must not exceed limits.cpu, or torch spends the request being
+            # throttled by the CFS quota instead of synthesizing (the renderd
+            # lesson with ffmpeg threads applies unchanged).
+            - name: SILERO_THREADS
+              value: {{ $s.threads | quote }}
+            - name: WYOMING_PORT
+              value: {{ $s.wyomingPort | default 0 | quote }}
+            - name: SILERO_SHORT_CHARS
+              value: {{ $s.shortChars | quote }}
+            - name: SILERO_MAX_WAIT_S
+              value: {{ $s.maxWaitS | quote }}
+            {{- with $s.voiceAliases }}
+            - name: SILERO_VOICE_ALIASES
+              value: {{ include "voice.aliases" . | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+          # /healthz answers 503 until the model is loaded AND one warm-up
+          # phrase has been synthesized, so readiness means "will answer /tts
+          # now", not "process is up". The first start also downloads 145 MB
+          # of weights onto the PVC; the startup probe gives that five
+          # minutes before liveness is allowed to start killing the pod.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml $s.resources | nindent 12 }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: silerod-models
+{{- end }}

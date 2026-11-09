@@ -1,0 +1,106 @@
+# Shared speech services. Callers: n8n (bg-coast-news draft voiceover, HTTP to
+# silerod) and Home Assistant at home (Wyoming STT, later Wyoming TTS through
+# an adapter in front of silerod). Moved out of helm-n8n so one project's
+# rollout cannot take the other's voice with it. DRAFT 2026-11-09, not synced.
+
+# Namespaces allowed to call the services (NetworkPolicy ingress). Home
+# Assistant does not come from a namespace - see stt.homeCidrs.
+callerNamespaces:
+  - n8n
+  # health bot (anamnestic-claw / OpenClaw) voice replies, asked 2026-11-09
+  - openclaw
+
+silerod:
+  enabled: true
+  image:
+    repository: ghcr.io/nazmang/silerod
+    # 0.2.0: OpenAI /v1/audio/speech, Wyoming TTS, voice aliases, priority
+    # lock. Code 684ff06 (Вера GO), merged to bg-coast-news main as 5dedba0;
+    # image built by Jenkins Builds/bg-coast-news/main #1 (2026-11-09),
+    # sha256:9c4d5aa5d450d5767d5b94fd1ad7bfd2789cb5bcfb0ca105ee266297fe7c5b72.
+    tag: "0.2.0-5dedba0"
+    pullPolicy: IfNotPresent
+  # Private GHCR image. Secret rendered by templates/pull-secret.yaml from
+  # ghcrSilerod.dockerconfigjson in secrets.yaml (SOPS; same PAT as n8n's
+  # ghcr-renderd).
+  imagePullSecret: ghcr-silerod
+  port: 8080
+  # Wyoming TTS for Home Assistant, same process and model as HTTP. /healthz
+  # is 503 until this listens too, so a broken Wyoming takes /tts out of the
+  # Service as well; wyomingPort: 0 switches it off.
+  wyomingPort: 10200
+  # Fixed MetalLB address for HA at home (Wyoming only, HTTP stays internal).
+  wyomingLoadBalancerIP: 10.164.12.61
+  # Priority lock: requests up to shortChars go first; a long one waiting
+  # longer than maxWaitS is not overtaken any more.
+  shortChars: 200
+  maxWaitS: 3
+  # v5_6_ru: auto-stress and homographs; same five speakers (Женя, 2026-11-09).
+  model: v5_6_ru
+  threads: 2
+  # Voice per client, changed here only (Женя 2026-11-09). Clients send the
+  # alias as speaker/voice. Speakers: male aidar, eugene; female baya,
+  # kseniya, xenia. Needs silerod >= 0.2.0 (SILERO_VOICE_ALIASES).
+  voiceAliases:
+    news: eugene
+    bot: xenia
+    ha: baya
+  # Measured by Программист 2026-11-09: RSS 0.75 GiB on v5_6_ru.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  persistence:
+    storageClass: nfs-client
+    # New PVC: weights (145 MB) download again on first start.
+    size: 5Gi
+  nodeSelector:
+    renderd: "allowed"
+
+stt:
+  enabled: true
+  image:
+    repository: rhasspy/wyoming-whisper
+    # TBD: pin the current release after checking Docker Hub.
+    tag: "2.5.0"
+    pullPolicy: IfNotPresent
+  port: 10300
+  # medium-int8 vs small-int8: measure latency on these CPU nodes (no GPU)
+  # before settling; voice-02 says ~2 GiB fits k8s01-03.
+  model: medium-int8
+  language: ru
+  beamSize: 1
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1.5Gi
+    limits:
+      cpu: "3"
+      memory: 3Gi
+  persistence:
+    storageClass: nfs-client
+    size: 5Gi
+  nodeSelector: {}
+  # Not the renderd label: it includes k8s04, which has 4 GiB total. k8s01
+  # had the most free memory on 2026-11-09 (5.6 of 12.1 GiB used).
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                  - k8s04
+  # Source ranges allowed into STT from outside the cluster (Home Assistant on
+  # debian01, 192.168.88.152, arriving over WireGuard). TBD voice-05: how home
+  # reaches the cluster at all - 10.164.12.0/24 is not routed from home today.
+  homeCidrs:
+    - 192.168.88.0/24
+  # Home Assistant reaches STT through MetalLB at a fixed address (Женя,
+  # 2026-11-09). Pool first-pool is 10.164.12.1-100; .1 ingress, .50 portainer.
+  # Not routed from home yet: rm1 needs 10.164.12.0/24 into wireguard2.
+  loadBalancerIP: 10.164.12.60
