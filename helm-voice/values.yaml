@@ -85,12 +85,13 @@ stt:
   model: medium-int8
   language: ru
   beamSize: 1
+  # No CPU limit: with limit 3 on a 4-vCPU node CTranslate2 ran 4 threads
+  # and got CFS-throttled (2026-11-09, 7 s per short command).
   resources:
     requests:
-      cpu: "1"
+      cpu: "2"
       memory: 1.5Gi
     limits:
-      cpu: "3"
       memory: 3Gi
   persistence:
     storageClass: nfs-client
@@ -116,3 +117,29 @@ stt:
   # 2026-11-09). Pool first-pool is 10.164.12.1-100; .1 ingress, .50 portainer.
   # Not routed from home yet: rm1 needs 10.164.12.0/24 into wireguard2.
   loadBalancerIP: 10.164.12.60
+
+# Command recognition for Home Assistant: Vosk (small Russian model, ~50 MB,
+# streaming, no 30 s Whisper window). Corrected mode snaps the transcript to
+# the nearest sentence from templates/vosk-sentences.yaml; anything else
+# passes through as heard. Whisper (stt) stays for free speech.
+vosk:
+  enabled: true
+  image:
+    repository: rhasspy/wyoming-vosk
+    tag: "1.5.1"
+    pullPolicy: IfNotPresent
+  port: 10300
+  language: ru
+  # 0 = never correct, higher = correct more (upstream default 0.2).
+  correctSentences: 0.2
+  limitSentences: false
+  loadBalancerIP: 10.164.12.62
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  persistence:
+    storageClass: nfs-client
+    size: 1Gi

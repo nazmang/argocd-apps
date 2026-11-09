@@ -55,3 +55,27 @@ spec:
         {{- end }}
       ports:
         - port: wyoming
+{{- if .Values.vosk.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vosk-ingress
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "vosk") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "voice.selectorLabels" (dict "root" . "name" "vosk") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+        {{- range .Values.stt.homeCidrs }}
+        - ipBlock:
+            cidr: {{ . }}
+        {{- end }}
+      ports:
+        - port: wyoming
+{{- end }}
