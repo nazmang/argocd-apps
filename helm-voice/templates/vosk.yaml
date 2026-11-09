@@ -1,0 +1,114 @@
+{{- if .Values.vosk.enabled }}
+{{- $s := .Values.vosk }}
+# Vosk STT for short Home Assistant commands (2026-11-09: Whisper medium took
+# 7 s per command on CPU). Sentences live in vosk-sentences.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vosk-models
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "vosk") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with $s.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $s.persistence.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vosk
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "vosk") | nindent 4 }}
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: {{ $s.loadBalancerIP | quote }}
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - name: wyoming
+      port: {{ $s.port }}
+      targetPort: wyoming
+      protocol: TCP
+  selector:
+    {{- include "voice.selectorLabels" (dict "root" . "name" "vosk") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vosk
+  labels:
+    {{- include "voice.labels" (dict "root" . "name" "vosk") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "voice.selectorLabels" (dict "root" . "name" "vosk") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "voice.labels" (dict "root" . "name" "vosk") | nindent 8 }}
+      annotations:
+        checksum/sentences: {{ include (print $.Template.BasePath "/vosk-sentences.yaml") . | sha256sum }}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: vosk
+          image: "{{ $s.image.repository }}:{{ $s.image.tag }}"
+          imagePullPolicy: {{ $s.image.pullPolicy }}
+          args:
+            - --uri
+            - "tcp://0.0.0.0:{{ $s.port }}"
+            - --data-dir
+            - /data
+            - --download-dir
+            - /data
+            - --language
+            - {{ $s.language | quote }}
+            - --preload-language
+            - {{ $s.language | quote }}
+            - --sentences-dir
+            - /sentences
+            - --database-dir
+            - /data/db
+            - --correct-sentences
+            - {{ $s.correctSentences | quote }}
+            {{- if $s.limitSentences }}
+            - --limit-sentences
+            {{- end }}
+          ports:
+            - name: wyoming
+              containerPort: {{ $s.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: models
+              mountPath: /data
+            - name: sentences
+              mountPath: /sentences
+              readOnly: true
+          startupProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: wyoming
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml $s.resources | nindent 12 }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: vosk-models
+        - name: sentences
+          configMap:
+            name: vosk-sentences
+{{- end }}
