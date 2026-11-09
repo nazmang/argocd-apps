@@ -123,6 +123,10 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with $s.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: silerod
           image: "{{ $s.image.repository }}:{{ $s.image.tag }}"
