@@ -14,11 +14,14 @@ silerod:
   enabled: true
   image:
     repository: ghcr.io/nazmang/silerod
-    # 0.2.0: OpenAI /v1/audio/speech, Wyoming TTS, voice aliases, priority
-    # lock. Code 684ff06 (reviewer GO), merged to bg-coast-news main as 5dedba0;
-    # image built by Jenkins Builds/bg-coast-news/main #1 (2026-11-09),
-    # sha256:9c4d5aa5d450d5767d5b94fd1ad7bfd2789cb5bcfb0ca105ee266297fe7c5b72.
-    tag: "0.2.0-5dedba0"
+    # 0.2.1: numbers read as words before synthesis (reviewed, merged to
+    # bg-coast-news main as 6ebe18c). Image built by Jenkins
+    # Builds/bg-coast-news/main at 3700cd2 (2026-11-09; the tag takes the sha
+    # of main's HEAD at build time),
+    # sha256:050daa7565a8b557531380f61d1928283f76d7edf7d8e1d238fd2f338b9ed8c6.
+    # Rollback: tag "0.2.0-5dedba0"
+    # (sha256:9c4d5aa5d450d5767d5b94fd1ad7bfd2789cb5bcfb0ca105ee266297fe7c5b72).
+    tag: "0.2.1-3700cd2"
     pullPolicy: IfNotPresent
   # Private GHCR image. Secret rendered by templates/pull-secret.yaml from
   # ghcrSilerod.dockerconfigjson in secrets.yaml (SOPS; same PAT as n8n's
