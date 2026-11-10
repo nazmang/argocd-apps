@@ -303,9 +303,13 @@ renderd:
     # decision: empirical, not fixed up front). One Job render today: ~25 s
     # at 2 CPU; RSS was never measured, which is the first thing to read off
     # the "Память по контейнерам" panel.
+    # CPU request 250m, not 1 (Женя, 2026-11-10): idle use is ~3m and renders
+    # burst up to the limit. A full core reserved on k8s03 left pluggio's
+    # Jenkins build pods (1100m) with no node to fit on, JenkinsQueueStuck
+    # 2026-11-10 11:56. Same fix as voice/silerod in #391.
     resources:
       requests:
-        cpu: "1"
+        cpu: 250m
         memory: 512Mi
       limits:
         cpu: "4"
