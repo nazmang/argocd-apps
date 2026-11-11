@@ -2,9 +2,9 @@
 # on dkr01 (Secret vault-transit-token, delivered into vault-0 as VAULT_TOKEN
 # by ksops from helm-vault/auto-unseal).
 #
-# Why: the token is renewable but NOT periodic (no `period`, explicit_max_ttl 0),
-# so its TTL is capped by the system max (768h) and dies unless somebody renews
-# it. On 2026-11-02 it was 13 days from expiry and had to be renewed by hand
+# Why: the token is renewable with a 768h period (lookup-self 2026-11-11:
+# period 2764800, explicit_max_ttl 0), so it dies unless somebody renews it
+# within each period. On 2026-11-02 it was 13 days from expiry and had to be renewed by hand
 # from inside vault-0. An expired token means the next vault-0 restart cannot
 # unseal itself. Renewing resets the TTL to the max, so once a day keeps ~31
 # days of headroom; the alert below fires long before that runs out.
@@ -44,7 +44,8 @@ spec:
           labels:
             app.kubernetes.io/name: vault-transit-token-renew
         spec:
-          restartPolicy: OnFailure
+          # Never, not OnFailure: a failed pod must stay so its log can be read.
+          restartPolicy: Never
           automountServiceAccountToken: false
           securityContext:
             runAsNonRoot: true
@@ -61,7 +62,10 @@ spec:
               args:
                 - |
                   out="$(vault token renew -format=json)"
-                  lease="$(printf '%s' "$out" | sed -n 's/.*"lease_duration": *\([0-9][0-9]*\).*/\1/p' | head -n1)"
+                  # The JSON carries lease_duration twice: top-level (always 0 for a
+                  # token) and auth.lease_duration (the real TTL). Take the largest;
+                  # `head -n1` took the top-level 0 and failed every run since 03.11.
+                  lease="$(printf '%s' "$out" | sed -n 's/.*"lease_duration": *\([0-9][0-9]*\).*/\1/p' | sort -n | tail -n1)"
                   if [ -z "$lease" ] || [ "$lease" -lt 604800 ]; then
                     echo "renew returned lease_duration='${lease:-none}' (< 7d): token is not being extended" >&2
                     exit 1
@@ -114,7 +118,11 @@ spec:
             description: "The token expires up to ~31 days after the last good run. Check `kubectl -n vault logs job/<name>` and whether the transit Vault on dkr01 is up and unsealed."
         - alert: VaultTransitTokenRenewNotRunning
           expr: |
-            time() - kube_cronjob_status_last_successful_time{namespace="vault",cronjob="vault-transit-token-renew"} > 3 * 86400
+            time() - (
+              kube_cronjob_status_last_successful_time{namespace="vault",cronjob="vault-transit-token-renew"}
+              or
+              kube_cronjob_created{namespace="vault",cronjob="vault-transit-token-renew"}
+            ) > 3 * 86400
           for: 1h
           labels:
             severity: critical
