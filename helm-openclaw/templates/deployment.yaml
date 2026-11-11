@@ -135,7 +135,7 @@ spec:
               # migrates to auto=always and voiced every text reply too, so it
               # is removed from the persisted config, not just no longer set.
               openclaw config unset tts.enabled || true
-              openclaw config set tts.auto inbound
+              openclaw config set tts.auto {{ .Values.env.voice.ttsAuto | default "inbound" }}
               openclaw config set tts.provider openrouter
               openclaw config set tts.providers.openrouter --strict-json '{{ .Values.env.voice.tts | toJson }}'
               # Direct providers left on the PVC by earlier bootstraps: without

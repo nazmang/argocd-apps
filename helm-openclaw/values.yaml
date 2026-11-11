@@ -171,6 +171,9 @@ env:
     # premade "George". Gemini TTS was rejected: it only returns pcm.
     # 2026-10-12: flash-v2.5 instead of multilingual-v2 -- half the price per
     # character, same voice, 2x faster; Russian TTS -> STT verified word for word.
+    # 2026-11-11, Женя: на голосовые отвечать текстом, пока нет своего голоса
+    # на silerod. "inbound" — голосом в ответ на голосовое; "off" — только текст.
+    ttsAuto: "off"
     tts:
       model: elevenlabs/eleven-flash-v2.5
       speakerVoice: JBFqnCBsd6RMkjVDRZzb
