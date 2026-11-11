@@ -1,0 +1,139 @@
+{{- /*
+  NATS between pluggio's edge and its actors (plan 9.2; Женя 11.11 19:01: «пусть работает, может, хватит; если нет --
+  Kafka/Strimzi»). Core NATS only: no JetStream, no volume. A message lost in a restart is re-sent by the edge; a STOP
+  never goes through the bus (it goes straight to the bridge socket), so the toy's safety does not depend on this pod.
+
+  pluggio itself stays on its in-process bus until an image with the NATS bus is rolled out and PLUGGIO_BUS__BACKEND
+  / PLUGGIO_BUS__URL are set; this only stands the server up.
+
+  One user, «pluggio», password from secrets.yaml (secrets.NATS_PASSWORD). The config carries it, so it is a Secret.
+  NetworkPolicy: in on 4222 from the pluggio pod only; 8222 (monitoring JSON, not Prometheus) stays inside the pod.
+*/}}
+{{- if .Values.nats.enabled }}
+{{- $pw := (.Values.secrets | default dict).NATS_PASSWORD }}
+{{- if not $pw }}
+  {{- fail "\n\nMissing value: secrets.NATS_PASSWORD (nats.enabled is true).\nRender with: helm template pluggio ./helm-pluggio -f <(sops -d helm-pluggio/secrets.yaml)\n" }}
+{{- end }}
+{{- $name := printf "%s-nats" (include "pluggio.fullname" .) }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pluggio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+type: Opaque
+stringData:
+  nats.conf: |
+    port: 4222
+    http_port: 8222
+    max_payload: 1MB
+    authorization {
+      user: pluggio
+      password: {{ $pw | quote }}
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pluggio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: nats
+      annotations:
+        checksum/config: {{ $pw | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10002
+        runAsGroup: 10002
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nats
+          image: "{{ .Values.nats.image.repository }}:{{ .Values.nats.image.tag }}@{{ .Values.nats.image.digest }}"
+          imagePullPolicy: IfNotPresent
+          args: ["--config", "/etc/nats/nats.conf"]
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: monitor
+              containerPort: 8222
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: monitor
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: monitor
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.nats.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nats
+              readOnly: true
+      volumes:
+        - name: config
+          secret:
+            secretName: {{ $name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pluggio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: client
+      port: 4222
+      targetPort: client
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "pluggio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: nats
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "pluggio.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: client
+  egress: []        # a lone server: it calls nobody
+{{- end }}

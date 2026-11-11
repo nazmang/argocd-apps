@@ -311,6 +311,11 @@ tenant:
     - name: bg-coast-news-assets
       objectLock: false
       region: us-east-1
+    # pluggio's media, stories and photos, sealed by pluggio before they leave the pod (plan 9.2.0; Женя 11.11 19:02).
+    # Its user and policy (this bucket only) are made by hand, like anamnestic-claw's (runbook in the pluggio repo).
+    - name: pluggio-media
+      objectLock: false
+      region: us-east-1
   ###
   # Array of Kubernetes secrets from which the Operator generates MinIO users during tenant provisioning.
   # Each element in the array is an object consisting of a key-value pair ``name: <string>``, where the ``<string>`` references an opaque Kubernetes secret.
