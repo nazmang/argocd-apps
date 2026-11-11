@@ -28,15 +28,27 @@ tenant:
   #       pullPolicy: IfNotPresent
   #
   #
+  # The upstream tag is gone from quay.io and Docker Hub (checked 2026-11-11).
+  # This is a copy kept in the private ghcr.io/nazmang/minio, rebuilt from the
+  # layers of a running tenant container on k8s03 (the node cache had dropped
+  # the compressed layers, so `ctr images export` could not produce the
+  # original). Same files, same ENTRYPOINT/CMD/ENV; one layer, other digest:
+  # sha256:745ba12fe3e2a70392c289126b051c7e68ba751840aea208cbc9088cd1c6a58c
+  # (original: sha256:8834ae47a2de3509b83e0e70da9369c24bbbc22de42f2a2eddc530eee88acd1b).
+  # Rollback: repository quay.io/minio/minio, tag RELEASE.2025-04-08T15-41-24Z,
+  # imagePullSecret {} - works only while the nodes still cache that image.
   image:
-    repository: quay.io/minio/minio
-    tag: RELEASE.2025-04-08T15-41-24Z
+    repository: ghcr.io/nazmang/minio
+    tag: RELEASE.2025-04-08T15-41-24Z-rootfs
     pullPolicy: IfNotPresent
   ###
   #
   # An array of Kubernetes secrets to use for pulling images from a private ``image.repository``.
   # Only one array element is supported at this time.
-  imagePullSecret: { }
+  # Secret ghcr-minio comes from the minio-pull-secret Application
+  # (helm-minio/pull-secret).
+  imagePullSecret:
+    name: ghcr-minio
   ###
   #
   # Specify `initContainers <https://kubernetes.io/docs/concepts/workloads/pods/init-containers/>`__ to perform setup or configuration tasks before the main Tenant pods starts.
