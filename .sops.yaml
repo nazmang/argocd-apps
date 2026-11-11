@@ -74,6 +74,13 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(dockerconfigjson)$
 
+  # MinIO tenant image: the upstream quay.io tag is gone (2026-11-11), a copy
+  # lives in the private ghcr.io/nazmang/minio. Only the GHCR pull credential,
+  # copied from helm-voice's ghcrSilerod (same PAT).
+  - path_regex: helm-minio/pull-secret/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(dockerconfigjson)$
+
   # --- ArgoCD-reconciled, decrypted by ksops via a kustomize generator ---
 
   # data key is literally named "vault-init.yaml" (kubectl create secret

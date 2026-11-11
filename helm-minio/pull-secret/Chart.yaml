@@ -1,0 +1,6 @@
+apiVersion: v2
+name: minio-pull-secret
+description: GHCR pull credential for the MinIO tenant image kept in ghcr.io/nazmang/minio
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

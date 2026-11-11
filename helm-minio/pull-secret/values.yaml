@@ -1,0 +1,7 @@
+# Name of the Secret the tenant references in
+# helm-minio/minio-tenant.values.yaml (tenant.imagePullSecret.name).
+name: ghcr-minio
+
+# ghcrMinio.dockerconfigjson comes from secrets.yaml (SOPS). Same PAT as
+# ghcr-silerod in namespace voice and ghcr-renderd in namespace n8n.
+ghcrMinio: {}
