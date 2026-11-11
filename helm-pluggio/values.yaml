@@ -67,6 +67,22 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-body-size: 100m  # photo and story video uploads
 
+# NATS between the edge and the actors (templates/nats.yaml; plan 9.2). Stood up first, pluggio switches to it with a
+# later image (PLUGGIO_BUS__BACKEND). Its password is in secrets.yaml.
+nats:
+  enabled: true
+  image:
+    repository: nats
+    tag: 2.10.29-alpine
+    digest: sha256:b83efabe3e7def1e0a4a31ec6e078999bb17c80363f881df35edc70fcb6bb927
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
 monitoring:
   serviceMonitor:
     # pluggio publishes no /metrics yet. Off by decision, not by omission.
@@ -79,6 +95,9 @@ monitoring:
     workloads:
       - name: pluggio
         container: pluggio
+      # NATS serves JSON on 8222, not Prometheus: the baseline (replicas, restarts, OOM, memory) is what it gets.
+      - name: pluggio-nats
+        container: nats
     ingress:
       enabled: true
       host: pluggio.srvx.cc
