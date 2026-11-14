@@ -39,7 +39,7 @@ persistence:
   claimSuffix: "-encrypted"
 
 env:
-  tz: UTC
+  tz: Europe/Sofia
   # consumed by the gateway-config-bootstrap initContainer's
   # `openclaw config set gateway.controlUi.allowedOrigins` call — there is
   # no working env var for this setting (OPENCLAW_ALLOWED_ORIGINS is not
