@@ -26,16 +26,12 @@ service:
   sandboxPort: 18790
 
 persistence:
-  storageClass: nfs-client
-  accessModes:
-    - ReadWriteOnce
-  size: 5Gi
-  # Шифрованный том (LUKS, этап 5 плана 2026-11-05-purge-and-encrypt). Старый PVC выше
-  # остаётся откатом до зачистки: класс Retain, под держится на Recreate.
+  # Шифрованный том (LUKS, этап 5 плана 2026-11-05-purge-and-encrypt). Старый открытый
+  # NFS-PVC `openclaw` удалён 15.11.2026, каталог на nas01 стёрт shred.
   encrypted:
     storageClass: proxmox-lvm-luks
     size: 5Gi
-  # Какой PVC монтируют Deployment и бэкап: {{ fullname }} или {{ fullname }}-encrypted.
+  # Суффикс PVC для Deployment и бэкапа: только "-encrypted", открытого тома больше нет.
   claimSuffix: "-encrypted"
 
 env:
