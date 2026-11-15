@@ -214,21 +214,32 @@ ingress:
   className: nginx
   host: openclaw.srvx.cc
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # No nginx Basic Auth in front of the gateway any more (owner's decision,
     # 2026-09-18): the browser prompt doubled up with OpenClaw's own
     # authentication -- gateway token plus device pairing -- and that layer is
     # now the only perimeter on this public host. If a second layer is wanted
     # again, prefer Cloudflare Access over auth-type: basic.
+    # ЧЕРНОВИК 15.11 (ветка draft/openclaw-off-tunnel): из тоннеля Cloudflare убираем.
+    # Там снимался TLS, и Cloudflare видел переписку открытым текстом. Теперь
+    # A-запись (серое облако) указывает на внутренний адрес ingress, а снаружи
+    # хост доступен только через WireGuard. Спека
+    # anamnestic-claw: docs/superpowers/specs/2026-11-15-openclaw-off-tunnel-design.md
     external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
-    external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
-    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    external-dns.alpha.kubernetes.io/target: 10.164.12.1
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+    cert-manager.io/cluster-issuer: letsencrypt-dns
+  # Сертификат Let's Encrypt через DNS-01: TLS заканчивается на нашем ingress.
+  tls:
+    enabled: true
+    secretName: openclaw-tls
 
 # Public origin of the widget sandbox (mcp.apps.sandboxOrigin). It must differ
 # from the Control UI origin and must not host authenticated content.
 sandboxIngress:
   enabled: true
   host: openclaw-sandbox.srvx.cc
+  tlsSecretName: openclaw-sandbox-tls
 
 gatewayTokenSecretName: openclaw-gateway-token
 # Provider API keys (ANTHROPIC_API_KEY) -- see templates/secrets.yaml.

@@ -11,6 +11,11 @@ metadata:
   {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | quote }}]
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
   rules:
     - host: {{ .Values.ingress.host }}
       http:
@@ -34,12 +39,20 @@ metadata:
   labels:
     {{- include "openclaw.labels" . | nindent 4 }}
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: {{ index .Values.ingress.annotations "nginx.ingress.kubernetes.io/ssl-redirect" | quote }}
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.sandboxIngress.host }}
     external-dns.alpha.kubernetes.io/target: {{ index .Values.ingress.annotations "external-dns.alpha.kubernetes.io/target" }}
-    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: {{ index .Values.ingress.annotations "external-dns.alpha.kubernetes.io/cloudflare-proxied" | quote }}
+    {{- with index .Values.ingress.annotations "cert-manager.io/cluster-issuer" }}
+    cert-manager.io/cluster-issuer: {{ . }}
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.sandboxIngress.host | quote }}]
+      secretName: {{ .Values.sandboxIngress.tlsSecretName }}
+  {{- end }}
   rules:
     - host: {{ .Values.sandboxIngress.host }}
       http:
