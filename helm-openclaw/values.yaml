@@ -72,6 +72,10 @@ env:
   # when thinking is off, and these tools call their model without thinking;
   # Haiku 5.5 accepts it (verified on a real lab PDF).
   mediaModel: "openrouter/anthropic/claude-haiku-5.5"
+  # Photos only (view_image). Haiku 5.5 refused clinical close-ups of the body
+  # (16.11.2026); Sonnet 5.5 describes them, verified via `openclaw infer image
+  # describe` on the pod. Same ZDR route (params below). PDF stays on mediaModel.
+  imageModel: "openrouter/anthropic/claude-sonnet-5.5"
   # agents.defaults.models: picker aliases plus the per-request routing. The
   # bootstrap replaces the whole map, so stale direct-provider entries go.
   models:
