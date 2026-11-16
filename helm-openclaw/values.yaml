@@ -117,9 +117,16 @@ env:
   # actually runs, history restarts at summary + tail and only appends until
   # the next 100kb. Baseline: anamnestic-claw
   # docs/superpowers/notes/2026-11-16-prompt-cache-baseline.md.
+  # 2026-11-16 evening: 6k tail compacted 4 times in 1.5 h; DeepSeek summarised
+  # its own summaries and facts drifted (dates, places). Owner chose 250kb /
+  # 16k tail (compaction 1-2 times a day, 250kb ~ 33-37k tokens > tail) and
+  # Sonnet 5.5 for summaries only (same ZDR route; thinking on: Sonnet 5.5
+  # rejects requests without reasoning).
   compaction:
-    maxActiveTranscriptBytes: "100kb"
-    keepRecentTokens: 6000
+    maxActiveTranscriptBytes: "250kb"
+    keepRecentTokens: 16000
+    model: "openrouter/anthropic/claude-sonnet-5.5"
+    thinkingLevel: "low"
     notifyUser: true
   # Tool and skill catalog sent with every call (2026-11-09). Unset, the
   # agent got every core tool schema (~74 tools) and 16 bundled skills
