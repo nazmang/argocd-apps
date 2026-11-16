@@ -109,8 +109,17 @@ env:
   # minutes only; after a >30 min pause 16 of 17 calls missed and resent the
   # whole ~64k-token session uncached (~3/4 of uncached input). 100kb keeps
   # the session near the fixed prefix plus ~25k tokens of history.
+  # 2026-11-16: keepRecentTokens 20000 -> 6000. 100kb of Russian transcript is
+  # only ~13-15k tokens, under the default 20k tail, so compaction logged
+  # "Nothing to compact (session too small)" and OpenClaw fell back to a bounded
+  # view that dropped the oldest turn every message: the history head changed
+  # each turn and 10 of 14 cache drops were that. With a 6k tail compaction
+  # actually runs, history restarts at summary + tail and only appends until
+  # the next 100kb. Baseline: anamnestic-claw
+  # docs/superpowers/notes/2026-11-16-prompt-cache-baseline.md.
   compaction:
     maxActiveTranscriptBytes: "100kb"
+    keepRecentTokens: 6000
     notifyUser: true
   # Tool and skill catalog sent with every call (2026-11-09). Unset, the
   # agent got every core tool schema (~74 tools) and 16 bundled skills
