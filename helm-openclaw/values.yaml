@@ -197,7 +197,10 @@ env:
 
 resources:
   limits:
-    cpu: "1"
+    # 1 -> 2 on 2026-11-17: cgroup cpu.stat showed 427 s throttled out of
+    # 609 s used in 13 h; turn preparation (SQLite history, system prompt)
+    # took 7-15 s before the model call. Nodes sit at ~10% CPU.
+    cpu: "2"
     # 1Gi -> 2Gi on 2026-09-19. On 2026.9.4 the gateway idles at 350-560 MiB
     # with 14 plugins loaded and warns itself at rss 512 MiB; the first cron
     # agent turn with a retry (weight-reminder, 09:00 UTC) went from ~380 MiB
