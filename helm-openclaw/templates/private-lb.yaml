@@ -1,0 +1,31 @@
+{{- if .Values.privateLb.enabled }}
+# Свой адрес MetalLB для OpenClaw (черновик 15.11, ветка draft/openclaw-off-tunnel).
+# Это второй Service на те же поды ingress-nginx, но с externalTrafficPolicy: Local:
+# kube-proxy не делает SNAT, и gateway видит настоящий адрес клиента (дом или VPN).
+# На общем 10.164.12.1 (Cluster) источник подменяется на адрес из подсети подов,
+# а он в trustedProxies, поэтому gateway отвечает 403 proxy_attribution_required.
+# Service selects pods only in its own namespace, поэтому он лежит в ingress-nginx.
+apiVersion: v1
+kind: Service
+metadata:
+  name: openclaw-private
+  namespace: {{ .Values.privateLb.ingressNamespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: {{ .Values.privateLb.ip | quote }}
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    {{- toYaml .Values.privateLb.ingressSelector | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP
+{{- end }}
