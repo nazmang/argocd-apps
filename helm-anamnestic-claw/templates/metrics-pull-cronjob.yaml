@@ -1,0 +1,63 @@
+{{- /*
+  Сбор метрик Health Connect из HA в дневник: POST /home/metrics/pull (спека моста HA §5).
+  Ключи HA знает только бэкенд; джоб держит лишь API-токен и id пользователя.
+  Ответ — виды и причины пропуска, значений в нём нет, так что его можно писать в лог.
+  Офсет — из POSIX-строки зоны: в образе curl нет tzdata.
+*/}}
+{{- if .Values.metricsPull.enabled }}
+{{- range $i, $schedule := .Values.metricsPull.schedules }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "anamnesticClaw.fullname" $ }}-metrics-pull-{{ $i }}
+  labels:
+    {{- include "anamnesticClaw.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $schedule | quote }}
+  timeZone: {{ $.Values.metricsPull.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+          containers:
+            - name: pull
+              image: {{ $.Values.metricsPull.image | quote }}
+              env:
+                - name: TZ
+                  value: {{ $.Values.metricsPull.posixTz | quote }}
+                - name: API_BEARER_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.secretName }}
+                      key: API_BEARER_TOKEN
+                - name: USER_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.secretName }}
+                      key: GATE_USER_ID
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  z=$(date +%z)
+                  sign=${z%????}; h=${z#?}; h=${h%??}; m=${z#???}
+                  off=$(( (10#$h * 60 + 10#$m) ))
+                  [ "$sign" = "-" ] && off=$(( -off ))
+                  curl -fsS --max-time 120 -X POST \
+                    -H "Authorization: Bearer ${API_BEARER_TOKEN}" -H "X-User-Id: ${USER_ID}" \
+                    "http://{{ include "anamnesticClaw.fullname" $ }}:{{ $.Values.service.port }}/home/metrics/pull?tz_offset_min=${off}"
+              resources:
+                requests: { cpu: 10m, memory: 16Mi }
+                limits: { memory: 64Mi }
+{{- end }}
+{{- end }}

@@ -153,3 +153,12 @@ monitoring:
     workloads:
       - name: anamnestic-claw
         container: anamnestic-claw
+
+# Сбор метрик Health Connect из HA (POST /home/metrics/pull), 09:30 и 23:50 по Софии.
+# posixTz — та же зона строкой POSIX: в образе curl нет tzdata, а офсет нужен бэкенду.
+metricsPull:
+  enabled: true
+  schedules: ["30 9 * * *", "50 23 * * *"]
+  timeZone: Europe/Sofia
+  posixTz: "EET-2EEST,M3.5.0/3,M10.5.0/4"
+  image: curlimages/curl:8.11.1
