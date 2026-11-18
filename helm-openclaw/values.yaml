@@ -165,6 +165,11 @@ env:
       - heartbeat_respond
       - session_status
       - apply_patch
+      # 18.11: shell off. The bot reads web pages (search, browser), so a page
+      # could talk it into running commands and sending files out. It only
+      # ever used exec to list memory files; fs tools cover that.
+      - exec
+      - process
   skills:
     allowBundled: [weather]
   # gateway.trustedProxies. 2026.9 answers 403 {"type":"proxy_attribution_required"}
