@@ -129,6 +129,7 @@ spec:
               # skills the bot uses. Lists in values env.tools / env.skills.
               openclaw config set tools.profile '{{ .Values.env.tools.profile }}'
               openclaw config set tools.alsoAllow --strict-json '{{ .Values.env.tools.alsoAllow | toJson }}'
+              openclaw config set tools.deny --strict-json '{{ .Values.env.tools.deny | default list | toJson }}'
               openclaw config set skills.allowBundled --strict-json '{{ .Values.env.skills.allowBundled | toJson }}'
               # auto=inbound: speak only in reply to a voice message, text to
               # text. The legacy tts.enabled=true set here until 2026-09-29

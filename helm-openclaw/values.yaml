@@ -152,6 +152,16 @@ env:
       - sessions_history
       - conversations_list
       - tts
+    # Never called in 2 months of history (18.11, transcript count) but each
+    # sends its description and schema in every request. ~3k chars of
+    # descriptions alone. Remove a name here if the bot needs it again.
+    deny:
+      - secrets
+      - presence
+      - gateway
+      - heartbeat_respond
+      - session_status
+      - apply_patch
   skills:
     allowBundled: [weather]
   # gateway.trustedProxies. 2026.9 answers 403 {"type":"proxy_attribution_required"}
