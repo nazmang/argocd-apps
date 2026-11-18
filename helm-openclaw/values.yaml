@@ -223,7 +223,7 @@ ingress:
     # ЧЕРНОВИК 15.11 (ветка draft/openclaw-off-tunnel): из тоннеля Cloudflare убираем.
     # Там снимался TLS, и Cloudflare видел переписку открытым текстом. Теперь
     # A-запись (серое облако) указывает на внутренний адрес ingress, а снаружи
-    # хост доступен только через WireGuard. Спека
+    # хост доступен только через VPN (Tailscale). Спека
     # anamnestic-claw: docs/superpowers/specs/2026-11-15-openclaw-off-tunnel-design.md
     external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
     # = privateLb.ip ниже: свой адрес MetalLB с externalTrafficPolicy: Local.
