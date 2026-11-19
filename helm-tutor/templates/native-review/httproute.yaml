@@ -1,0 +1,23 @@
+# Route through kgateway (Gateway public in kgateway-system). The Ingress
+# stays until external-dns reads HTTPRoutes. No body-size policy: Envoy
+# streams request bodies without the 1m nginx default, so the 10m audio
+# notes pass as is.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: native-review
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    - name: public
+      namespace: kgateway-system
+  hostnames:
+    - review.srvx.cc
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: native-review
+          port: 80
