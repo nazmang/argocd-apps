@@ -59,8 +59,8 @@ spec:
             httpGet:
               path: /healthz
               port: http
-            periodSeconds: 5
-            failureThreshold: 30
+            periodSeconds: 1
+            failureThreshold: 150
           livenessProbe:
             httpGet:
               path: /healthz
@@ -71,7 +71,8 @@ spec:
             httpGet:
               path: /readyz
               port: http
-            periodSeconds: 2
+            periodSeconds: 1
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
