@@ -105,6 +105,12 @@ env:
       alias: "deepseek"
       params:
         maxTokens: 32000
+        # 2026-11-19: OpenClaw sends no session key on the OpenRouter route, so
+        # OpenRouter guesses the session from a hash of the first messages and
+        # the provider cache was lost within 1-4 min on identical bytes. A fixed
+        # session_id pins sticky routing (expires after 60 min idle).
+        extraBody:
+          session_id: "oc-main-1"
         provider:
           zdr: true
           data_collection: deny
