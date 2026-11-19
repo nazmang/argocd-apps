@@ -5,13 +5,11 @@ metadata:
   namespace: argocd
 spec:
   project: default
+  # Upstream Gateway API CRDs, standard channel. kgateway v2.5 is built against v1.7.0.
   source:
-    repoURL: "https://charts.appscode.com/stable"
-    chart: "gateway-api"
-    targetRevision: "v2025.9.19"
-    helm:
-      releaseName: "gateway-api"
-      valueFiles: []
+    repoURL: "https://github.com/kubernetes-sigs/gateway-api"
+    targetRevision: "v1.7.0"
+    path: config/crd/standard
 
   destination:
     server: "https://kubernetes.default.svc"
@@ -19,7 +17,8 @@ spec:
 
   syncPolicy:
     automated:
-      prune: true
+      prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
