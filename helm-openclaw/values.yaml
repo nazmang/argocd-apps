@@ -85,6 +85,11 @@ env:
     openrouter/anthropic/claude-sonnet-5.5:
       alias: "sonnet-5.5"
       params: &zdr
+        # 2026-11-19: unset, OpenClaw asks for the model's full output ceiling
+        # (~900k tokens) and OpenRouter reserves credit for all of it up front:
+        # with ~$2 left on the weekly key limit every call got 402 "billing"
+        # and fell back. 32k covers reasoning plus a reply.
+        maxTokens: 32000
         provider:
           zdr: true
           data_collection: deny
@@ -99,6 +104,7 @@ env:
     openrouter/deepseek/deepseek-v4-pro-0813:
       alias: "deepseek"
       params:
+        maxTokens: 32000
         provider:
           zdr: true
           data_collection: deny
