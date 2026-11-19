@@ -616,3 +616,41 @@ extraResources:
                     name: minio
                     port:
                       number: 443
+  # The same host through kgateway (Gateway public in kgateway-system). The
+  # Ingress above stays until external-dns reads HTTPRoutes. Envoy streams
+  # bodies with no size cap, as proxy-body-size 0 and buffering off do above.
+  - |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: minio-bg-coast-public
+      namespace: minio-operator
+    spec:
+      parentRefs:
+        - name: public
+          namespace: kgateway-system
+      hostnames:
+        - bg-coast-assets.srvx.cc
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: minio
+              port: 443
+  # MinIO serves only HTTPS with the operator's self-signed certificate;
+  # nginx (backend-protocol HTTPS) does not verify it either.
+  - |
+    apiVersion: gateway.kgateway.dev/v1alpha1
+    kind: BackendConfigPolicy
+    metadata:
+      name: minio-tls
+      namespace: minio-operator
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: minio
+      tls:
+        insecureSkipVerify: true
