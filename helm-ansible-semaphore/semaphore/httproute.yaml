@@ -1,0 +1,21 @@
+# Gateway API route through kgateway (Gateway public in kgateway-system).
+# The Ingress stays until external-dns reads HTTPRoutes.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ansible-semaphore
+  namespace: semaphore
+spec:
+  parentRefs:
+    - name: public
+      namespace: kgateway-system
+  hostnames:
+    - semaphore.srvx.cc
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ansible-semaphore
+          port: 3000

@@ -191,12 +191,13 @@ ingress:
           pathType: Prefix
   tls: []
 
+# Gateway API route through kgateway (Gateway public in kgateway-system).
+# The Ingress stays until external-dns reads HTTPRoutes.
 httproute:
-  enabled: false
+  enabled: true
   parentRefs:
-    - name: gateway
-      namespace: gateway
-      sectionName: https
+    - name: public
+      namespace: kgateway-system
   hostnames:
     - ktulu.srvx.cc
 
