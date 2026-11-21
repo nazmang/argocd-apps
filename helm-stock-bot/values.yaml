@@ -1,0 +1,100 @@
+# A Telegram bot (long polling, no inbound traffic) with its state in one
+# SQLite file on a PVC. Source and README: the bot's own repository (Forgejo).
+
+image:
+  repository: ghcr.io/nazmang/stock-bot
+  # Deployed by digest only: a tag can be moved, a digest cannot. The tag is
+  # for humans. The chart refuses to render without a digest.
+  tag: "0.2.0-d8dbbff"
+  digest: "sha256:b37acd8da7483d77a6ef6774680e7d466902301198a0a1fabbc18eee2e13bb7c"
+  pullPolicy: IfNotPresent
+
+# Non-secret settings (names from the bot's .env.example). The allowed user
+# ids are NOT here -- this repository is public -- they are in secrets.yaml.
+env:
+  DB_PATH: /app/data/stock.db
+  ANTHROPIC_MODEL: claude-sonnet-5-5
+  TZ_NAME: Europe/Sofia
+  REMIND_HOUR: "9"
+  LOG_LEVEL: INFO
+  # The polling loop touches this file on every round (at most ~30 s apart);
+  # the liveness probe restarts the pod when it is older than liveness.maxAgeSec.
+  HEARTBEAT_PATH: /tmp/heartbeat
+  # Voice messages: Wyoming STT in the voice namespace (no key needed).
+  STT_BASE_URL: tcp://stt.voice.svc.cluster.local:10300
+  STT_LANGUAGE: ru
+
+liveness:
+  maxAgeSec: 180
+
+persistence:
+  # Encrypted at rest, Retain. Not NFS: SQLite in WAL mode needs working
+  # locks and shared memory, which NFS does not reliably give.
+  storageClass: proxmox-lvm-luks
+  size: 1Gi
+
+backup:
+  enabled: true
+  # A consistent snapshot through the sqlite3 backup API (python -m
+  # stockbot.backup), never a file copy: the database is in WAL mode.
+  schedule: "17 */6 * * *"
+  keepDays: 14
+  staleAfterHours: 13
+  storageClass: nfs-client
+  size: 1Gi
+
+networkPolicy:
+  # Wyoming STT; must match stt.callerNamespaces in helm-voice.
+  stt:
+    namespace: voice
+    podName: stt
+    port: 10300
+  # nodelocaldns (kubespray): pods resolve through this link-local address.
+  nodeLocalDns: 169.254.25.10/32
+
+securityContext:
+  runAsNonRoot: true
+  # The image's own user (uid 1000).
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+tmp:
+  sizeLimit: 64Mi
+
+# Secret values live in secrets.yaml (SOPS, helm-secrets), under `secrets`:
+#   secrets.env.BOT_TOKEN           from BotFather (owner inserts)
+#   secrets.env.ANTHROPIC_API_KEY   owner inserts
+#   secrets.env.ALLOWED_USER_IDS    Telegram user ids, comma-separated. Not a
+#                                   credential, but this repo is public
+#   secrets.env.STT_BASE_URL        optional; voice messages are off without it
+#   secrets.env.STT_API_KEY         optional
+#   secrets.dockerconfigjson        pull secret for ghcr.io/nazmang
+# Left empty on purpose: templates/secrets.yaml fails the render, naming what
+# is missing, rather than create an empty Secret.
+secrets: {}
+
+monitoring:
+  # Nothing to scrape: the bot serves no HTTP.
+  serviceMonitor:
+    enabled: false
+  rules:
+    enabled: true
+    labels:
+      release: prometheus
+    alertPrefix: StockBot

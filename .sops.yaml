@@ -68,6 +68,13 @@ creation_rules:
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
     encrypted_regex: ^(APPROVALD_BOT_TOKEN|APPROVALD_N8N_TOKEN|APPROVALD_DISPATCH_TOKEN|APPROVALD_DB_URL|APPROVALD_ALLOWED_IDS|APPROVALD_NOTIFY_CHAT_ID|dockerconfigjson)$
 
+  # stock-bot: bot token, LLM key, optional STT key and URL, the allowed
+  # Telegram user ids (personal identifiers, the repo is public) and the GHCR
+  # pull credential.
+  - path_regex: helm-stock-bot/secrets\.yaml$
+    age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
+    encrypted_regex: ^(BOT_TOKEN|ANTHROPIC_API_KEY|ALLOWED_USER_IDS|STT_BASE_URL|STT_API_KEY|dockerconfigjson)$
+
   # voice (shared speech services): only the GHCR pull credential for the
   # private silerod image, copied from helm-n8n's ghcrRenderd (same PAT).
   - path_regex: helm-voice/secrets\.yaml$

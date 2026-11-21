@@ -1,0 +1,47 @@
+{{- /*
+  Kept apart from templates/monitoring.yaml, which is a byte-identical copy of
+  chart-lib/monitoring.yaml. Two rules together: "has not run" and "ran and
+  failed". A job left Pending (bot pod down, see backup-cronjob.yaml) shows up
+  as the first one.
+*/}}
+{{- if and .Values.backup.enabled .Values.monitoring.rules.enabled }}
+{{- $name := printf "%s-backup" (include "stockBot.fullname" .) }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "stockBot.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.rules.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: {{ $name }}
+      rules:
+        - alert: {{ .Values.monitoring.rules.alertPrefix }}BackupStale
+          expr: |
+            (time() - max(kube_cronjob_status_last_successful_time{namespace="{{ .Release.Namespace }}", cronjob="{{ $name }}"}) > {{ mul .Values.backup.staleAfterHours 3600 }})
+            or absent(kube_cronjob_status_last_successful_time{namespace="{{ .Release.Namespace }}", cronjob="{{ $name }}"})
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No successful database snapshot for {{ .Values.backup.staleAfterHours }}h"
+            description: >-
+              CronJob {{ $name }} has not succeeded for {{ .Values.backup.staleAfterHours }}
+              hours, or never has. Check that the bot pod is running (the job
+              must land on its node): kubectl -n {{ .Release.Namespace }} get pods,jobs
+        - alert: {{ .Values.monitoring.rules.alertPrefix }}BackupFailing
+          expr: |
+            kube_job_status_failed{namespace="{{ .Release.Namespace }}", job_name=~"{{ $name }}-.*"} > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Database snapshot job fails"
+            description: >-
+              kubectl -n {{ .Release.Namespace }} logs job/<name> -c snapshot.
+              The alert stays on while the failed Job exists; delete it after
+              the fix: kubectl -n {{ .Release.Namespace }} delete job <name>
+{{- end }}

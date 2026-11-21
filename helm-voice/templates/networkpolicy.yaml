@@ -53,6 +53,11 @@ spec:
         - ipBlock:
             cidr: {{ . }}
         {{- end }}
+        {{- range .Values.stt.callerNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
       ports:
         - port: wyoming
 {{- if .Values.vosk.enabled }}
