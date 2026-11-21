@@ -1,9 +1,8 @@
 {{- /*
   Calico enforces NetworkPolicy here. The bot polls Telegram and calls the
-  Claude API (and an optional STT endpoint), all over HTTPS: no ingress at all,
-  egress DNS plus 443 to public addresses only. Plain NetworkPolicy cannot
-  name a host; private ranges are excluded, so nothing internal is reachable.
-  A STT server inside the LAN would need its own rule here.
+  Claude API over HTTPS: no ingress at all, egress DNS plus 443 to public
+  addresses only. Plain NetworkPolicy cannot name a host; private ranges are
+  excluded, so nothing internal is reachable except the Wyoming STT pod below.
 
   The backup job needs no network at all.
 */}}
@@ -39,6 +38,17 @@ spec:
             except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
       ports:
         - { port: 443, protocol: TCP }
+    {{- with $np.stt }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ .podName }}
+      ports:
+        - { port: {{ .port }}, protocol: TCP }
+    {{- end }}
 {{- if .Values.backup.enabled }}
 ---
 apiVersion: networking.k8s.io/v1

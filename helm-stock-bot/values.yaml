@@ -21,6 +21,9 @@ env:
   # The polling loop touches this file on every round (at most ~30 s apart);
   # the liveness probe restarts the pod when it is older than liveness.maxAgeSec.
   HEARTBEAT_PATH: /tmp/heartbeat
+  # Voice messages: Wyoming STT in the voice namespace (no key needed).
+  STT_BASE_URL: tcp://stt.voice.svc.cluster.local:10300
+  STT_LANGUAGE: ru
 
 liveness:
   maxAgeSec: 180
@@ -42,6 +45,11 @@ backup:
   size: 1Gi
 
 networkPolicy:
+  # Wyoming STT; must match stt.callerNamespaces in helm-voice.
+  stt:
+    namespace: voice
+    podName: stt
+    port: 10300
   # nodelocaldns (kubespray): pods resolve through this link-local address.
   nodeLocalDns: 169.254.25.10/32
 
