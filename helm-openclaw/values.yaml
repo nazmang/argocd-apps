@@ -301,6 +301,15 @@ privateLb:
 
 # Public origin of the widget sandbox (mcp.apps.sandboxOrigin). It must differ
 # from the Control UI origin and must not host authenticated content.
+# Routes on the private kgateway Gateway (k8s helm-kgateway, address 10.164.12.64).
+# Cutover: switch external-dns target on the Ingress from privateLb.ip to the
+# Gateway address; roll back by switching it back.
+httpRoute:
+  enabled: true
+  gateway:
+    name: private
+    namespace: kgateway-system
+
 sandboxIngress:
   enabled: true
   host: openclaw-sandbox.srvx.cc
