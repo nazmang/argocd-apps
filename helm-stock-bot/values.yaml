@@ -5,15 +5,17 @@ image:
   repository: ghcr.io/nazmang/stock-bot
   # Deployed by digest only: a tag can be moved, a digest cannot. The tag is
   # for humans. The chart refuses to render without a digest.
-  tag: "0.2.0-d8dbbff"
-  digest: "sha256:b37acd8da7483d77a6ef6774680e7d466902301198a0a1fabbc18eee2e13bb7c"
+  tag: "0.3.0-d9dbea1"
+  digest: "sha256:0cac7fa939e4ad7494a4a1735566753f2d58ce762b0f478a66d61c6b7aef2574"
   pullPolicy: IfNotPresent
 
 # Non-secret settings (names from the bot's .env.example). The allowed user
 # ids are NOT here -- this repository is public -- they are in secrets.yaml.
 env:
   DB_PATH: /app/data/stock.db
-  ANTHROPIC_MODEL: claude-sonnet-5-5
+  # Text and voice; photos use the stronger model below.
+  ANTHROPIC_MODEL: claude-haiku-5-5
+  ANTHROPIC_VISION_MODEL: claude-sonnet-5-5
   TZ_NAME: Europe/Sofia
   REMIND_HOUR: "9"
   LOG_LEVEL: INFO
