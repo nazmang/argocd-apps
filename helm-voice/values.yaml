@@ -81,6 +81,9 @@ silerod:
 
 stt:
   enabled: true
+  # Namespaces allowed to reach the Wyoming STT port only (not silerod).
+  callerNamespaces:
+    - stock-bot
   image:
     repository: rhasspy/wyoming-whisper
     # TBD: pin the current release after checking Docker Hub.
