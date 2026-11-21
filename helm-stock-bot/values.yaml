@@ -4,10 +4,9 @@
 image:
   repository: ghcr.io/nazmang/stock-bot
   # Deployed by digest only: a tag can be moved, a digest cannot. The tag is
-  # for humans. Empty until the image is built -- the chart refuses to render
-  # without a digest.
-  tag: ""
-  digest: ""
+  # for humans. The chart refuses to render without a digest.
+  tag: "0.2.0-d8dbbff"
+  digest: "sha256:b37acd8da7483d77a6ef6774680e7d466902301198a0a1fabbc18eee2e13bb7c"
   pullPolicy: IfNotPresent
 
 # Non-secret settings (names from the bot's .env.example). The allowed user
