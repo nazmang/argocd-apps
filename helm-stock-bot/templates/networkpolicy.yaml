@@ -1,0 +1,58 @@
+{{- /*
+  Calico enforces NetworkPolicy here. The bot polls Telegram and calls the
+  Claude API (and an optional STT endpoint), all over HTTPS: no ingress at all,
+  egress DNS plus 443 to public addresses only. Plain NetworkPolicy cannot
+  name a host; private ranges are excluded, so nothing internal is reachable.
+  A STT server inside the LAN would need its own rule here.
+
+  The backup job needs no network at all.
+*/}}
+{{- $np := .Values.networkPolicy }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "stockBot.fullname" . }}
+  labels:
+    {{- include "stockBot.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "stockBot.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - ipBlock:
+            cidr: {{ $np.nodeLocalDns }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
+      ports:
+        - { port: 443, protocol: TCP }
+{{- if .Values.backup.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "stockBot.fullname" . }}-backup
+  labels:
+    {{- include "stockBot.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "stockBot.name" . }}-backup
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+{{- end }}

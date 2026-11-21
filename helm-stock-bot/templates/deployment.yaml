@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "stockBot.fullname" . }}
+  labels:
+    {{- include "stockBot.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # One SQLite writer, one getUpdates consumer: Telegram answers 409 to a
+  # second poller, and two pods on one RWO volume would share one database.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "stockBot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "stockBot.labels" . | nindent 8 }}
+      annotations:
+        # envFrom is resolved at pod creation; roll the pod when a key changes.
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      # The bot finishes messages already in work on SIGTERM.
+      terminationGracePeriodSeconds: 60
+      imagePullSecrets:
+        - name: {{ include "stockBot.fullname" . }}-ghcr
+      containers:
+        - name: {{ .Chart.Name }}
+          # {{ .Values.image.tag }}
+          image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          env:
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "stockBot.fullname" . }}-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: tmp
+              mountPath: /tmp
+          # No HTTP to probe: a hung polling loop stops touching the heartbeat.
+          livenessProbe:
+            exec:
+              command: ["python", "-m", "stockbot.healthcheck", "{{ .Values.liveness.maxAgeSec }}"]
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            timeoutSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "stockBot.fullname" . }}-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmp.sizeLimit }}

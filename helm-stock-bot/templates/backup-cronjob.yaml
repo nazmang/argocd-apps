@@ -1,0 +1,78 @@
+{{- if .Values.backup.enabled }}
+{{- /*
+  The data volume is ReadWriteOnce on a block device, so the job must run on
+  the node where the bot pod has it attached: hence the required podAffinity.
+  While the bot pod is down the job stays Pending and BackupStale fires.
+*/}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "stockBot.fullname" . }}-backup
+  labels:
+    {{- include "stockBot.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  timeZone: Europe/Sofia
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: {{ include "stockBot.name" . }}-backup
+            app.kubernetes.io/instance: {{ .Release.Name }}
+        spec:
+          restartPolicy: Never
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          automountServiceAccountToken: false
+          enableServiceLinks: false
+          imagePullSecrets:
+            - name: {{ include "stockBot.fullname" . }}-ghcr
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - topologyKey: kubernetes.io/hostname
+                  labelSelector:
+                    matchLabels:
+                      {{- include "stockBot.selectorLabels" . | nindent 22 }}
+          containers:
+            - name: snapshot
+              image: "{{ .Values.image.repository }}@{{ .Values.image.digest }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                {{- toYaml .Values.containerSecurityContext | nindent 16 }}
+              env:
+                - name: DB_PATH
+                  value: {{ .Values.env.DB_PATH | quote }}
+                - name: KEEP_DAYS
+                  value: {{ .Values.backup.keepDays | quote }}
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  python -m stockbot.backup "/backup/stock-$(date +%Y%m%d-%H%M).db"
+                  find /backup -name 'stock-*.db' -mtime +"$KEEP_DAYS" -print -delete
+              volumeMounts:
+                - name: data
+                  mountPath: /app/data
+                - name: backup
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 128Mi
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: {{ include "stockBot.fullname" . }}-data
+            - name: backup
+              persistentVolumeClaim:
+                claimName: {{ include "stockBot.fullname" . }}-backup
+{{- end }}
