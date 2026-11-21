@@ -279,8 +279,9 @@ ingress:
     # хост доступен только через VPN (Tailscale). Спека
     # anamnestic-claw: docs/superpowers/specs/2026-11-15-openclaw-off-tunnel-design.md
     external-dns.alpha.kubernetes.io/hostname: openclaw.srvx.cc
-    # = privateLb.ip ниже: свой адрес MetalLB с externalTrafficPolicy: Local.
-    external-dns.alpha.kubernetes.io/target: 10.164.12.63
+    # Адрес приватного Gateway kgateway (httpRoute ниже; externalTrafficPolicy: Local).
+    # 21.11.2026 переведено с privateLb.ip (10.164.12.63, ingress-nginx); откат — вернуть .63.
+    external-dns.alpha.kubernetes.io/target: 10.164.12.64
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
     cert-manager.io/cluster-issuer: letsencrypt-dns
   # Сертификат Let's Encrypt через DNS-01: TLS заканчивается на нашем ingress.
