@@ -654,3 +654,104 @@ extraResources:
           name: minio
       tls:
         insecureSkipVerify: true
+  # minio.comintern.local and minio-console.comintern.local on the private
+  # kgateway Gateway (own MetalLB address, internal network and VPN only).
+  # TLS ends on the Gateway with the same self-signed secrets the Ingresses
+  # use; the Ingresses stay until internal DNS points at the Gateway address.
+  # No body size cap on Envoy, as proxy-body-size 0 above.
+  - |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: minio-comintern-private
+      namespace: minio-operator
+    spec:
+      parentRefs:
+        - name: private
+          namespace: kgateway-system
+          sectionName: minio
+      hostnames:
+        - minio.comintern.local
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: minio
+              port: 443
+  - |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: minio-comintern-console-private
+      namespace: minio-operator
+    spec:
+      parentRefs:
+        - name: private
+          namespace: kgateway-system
+          sectionName: minio-console
+      hostnames:
+        - minio-console.comintern.local
+      rules:
+        - matches:
+            - path:
+                type: PathPrefix
+                value: /
+          backendRefs:
+            - name: minio-comintern-console
+              port: 9443
+  # HTTP -> HTTPS on the private Gateway, as ssl-redirect on the Ingresses.
+  - |
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+      name: minio-comintern-redirect
+      namespace: minio-operator
+    spec:
+      parentRefs:
+        - name: private
+          namespace: kgateway-system
+          sectionName: http
+      hostnames:
+        - minio.comintern.local
+        - minio-console.comintern.local
+      rules:
+        - filters:
+            - type: RequestRedirect
+              requestRedirect:
+                scheme: https
+                statusCode: 301
+  # The console serves HTTPS with the operator's self-signed certificate too.
+  - |
+    apiVersion: gateway.kgateway.dev/v1alpha1
+    kind: BackendConfigPolicy
+    metadata:
+      name: minio-console-tls
+      namespace: minio-operator
+    spec:
+      targetRefs:
+        - group: ""
+          kind: Service
+          name: minio-comintern-console
+      tls:
+        insecureSkipVerify: true
+  # Lets the private Gateway read the TLS secrets in this namespace.
+  - |
+    apiVersion: gateway.networking.k8s.io/v1beta1
+    kind: ReferenceGrant
+    metadata:
+      name: minio-comintern-tls-for-gateway
+      namespace: minio-operator
+    spec:
+      from:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          namespace: kgateway-system
+      to:
+        - group: ""
+          kind: Secret
+          name: minio-api-tls
+        - group: ""
+          kind: Secret
+          name: minio-console-tls
