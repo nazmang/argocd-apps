@@ -53,7 +53,10 @@ env:
   N8N_METRICS_INCLUDE_MESSAGE_EVENT_BUS_METRICS: "true"
   # Per-endpoint API metrics: which call is slow, not just "something is slow".
   N8N_METRICS_INCLUDE_API_ENDPOINTS: "true"
-  N8N_METRICS_INCLUDE_API_PATH_LABEL: "true"
+  # Path label is OFF: n8n puts raw paths (with ids) into it, which grew
+  # http_request_duration to ~6800 series / 850 KB and made the gzip-encoded
+  # /metrics response hang, so Prometheus timed out and N8nDown fired.
+  N8N_METRICS_INCLUDE_API_PATH_LABEL: "false"
   N8N_METRICS_INCLUDE_API_METHOD_LABEL: "true"
   N8N_METRICS_INCLUDE_API_STATUS_CODE_LABEL: "true"
   # Workflow id as a label is deliberately OFF: it is unbounded cardinality in
