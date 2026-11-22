@@ -31,6 +31,15 @@ env:
   # means rate limiting and any IP-based logic were counting one client.
   N8N_PROXY_HOPS: "1"
 
+  # Postgres connection pool. Unset, n8n uses 2 connections, and that is the
+  # whole pool for the API, the editor, /metrics and every execution. On
+  # 2026-11-22 a test workflow held both: from 15:02 UTC every query failed with
+  # pg-pool "timeout exceeded when trying to connect", /metrics timed out (10 s)
+  # so N8nDown fired, and the API hung -- while /healthz kept passing, so the
+  # pod looked healthy and nothing restarted it. Only deleting the pod cleared
+  # it. 10 leaves room for a few slow executions without starving the rest.
+  DB_POSTGRESDB_POOL_SIZE: "10"
+
   # Execution history retention. Nothing pruned it, and the SQLite database
   # reached 1.36 GB -- on NFS, where every fsync crosses the network. Measured
   # before this: p95 response time at the ingress sat at 10 seconds.
