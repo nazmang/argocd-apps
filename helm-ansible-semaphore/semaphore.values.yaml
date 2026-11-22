@@ -93,7 +93,11 @@ ingress:
         #   # Secret containing TLS certificate for ingress.
         #   secretName: semaphore-ingress-tls
     # -- Additional annotations for the ingress
-    annotations: {}
+    annotations:
+        # DNS points at the private kgateway Gateway (semaphore/private-gateway.yaml),
+        # not at the ingress-nginx address in the Ingress status (10.164.12.1).
+        # Roll back by removing this annotation.
+        external-dns.alpha.kubernetes.io/target: 10.164.12.64
     # -- Additional labels for the ingress
     labels: {}
 persistence:
