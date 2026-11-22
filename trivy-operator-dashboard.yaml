@@ -5,39 +5,43 @@ metadata:
   namespace: argocd
 spec:
   project: local
-  source:
-    repoURL: https://github.com/raoulx24/trivy-operator-dashboard.git
-    targetRevision: master
-    path: deploy/helm/trivy-operator-dashboard
-    helm:
-      values: |
-        replicaCount: 1
-        history:
-          distributedCache:
-            sidecar:
-              pvc:
-                # The chart defaults this to managed-csi-premium, an Azure storage
-                # class that does not exist here. The PVC sat Pending for 85 days
-                # and the volume controller retried 4963 times, keeping the pod
-                # down and four alerts firing into an Alertmanager that discards
-                # them. This is the Valkey sidecar backing the history feature's
-                # cache -- if history is not wanted, disabling history.enabled
-                # removes the volume rather than placing it.
-                storageClassName: nfs-client
-        service:
-          type: ClusterIP
-        ingress:
-          enabled: true
-          className: nginx
-          hosts:
-            - host: trivy-dashboard.comintern.local
-              paths:
-                - path: /
-                  pathType: Prefix
-          tls:
-            - secretName: trivy-dashboard-tls
-              hosts:
-                - trivy-dashboard.comintern.local
+  sources:
+    - repoURL: https://github.com/raoulx24/trivy-operator-dashboard.git
+      targetRevision: master
+      path: deploy/helm/trivy-operator-dashboard
+      helm:
+        values: |
+          replicaCount: 1
+          history:
+            distributedCache:
+              sidecar:
+                pvc:
+                  # The chart defaults this to managed-csi-premium, an Azure storage
+                  # class that does not exist here. The PVC sat Pending for 85 days
+                  # and the volume controller retried 4963 times, keeping the pod
+                  # down and four alerts firing into an Alertmanager that discards
+                  # them. This is the Valkey sidecar backing the history feature's
+                  # cache -- if history is not wanted, disabling history.enabled
+                  # removes the volume rather than placing it.
+                  storageClassName: nfs-client
+          service:
+            type: ClusterIP
+          ingress:
+            enabled: true
+            className: nginx
+            hosts:
+              - host: trivy-dashboard.comintern.local
+                paths:
+                  - path: /
+                    pathType: Prefix
+            tls:
+              - secretName: trivy-dashboard-tls
+                hosts:
+                  - trivy-dashboard.comintern.local
+    # Certificate and private Gateway routes for the dashboard.
+    - repoURL: https://github.com/nazmang/argocd-apps.git
+      targetRevision: main
+      path: helm-trivy-dashboard/gateway
   destination:
     server: https://kubernetes.default.svc
     namespace: trivy-dashboard
