@@ -68,6 +68,12 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-body-size: 100m  # photo and story video uploads
 
+httpRoute:
+  enabled: true
+  gateway:
+    name: public
+    namespace: kgateway-system
+
 # NATS between the edge and the actors (templates/nats.yaml; plan 9.2). Stood up first, pluggio switches to it with a
 # later image (PLUGGIO_BUS__BACKEND). Its password is in secrets.yaml.
 nats:
