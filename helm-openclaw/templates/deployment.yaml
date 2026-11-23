@@ -269,6 +269,15 @@ spec:
             # lost on restart, counted against the pod memory limit.
             - name: media
               mountPath: /home/node/.openclaw/media
+          # Startup can wait up to 95 s for a killed gateway's state lease to
+          # expire; without this the liveness probe kills it at ~80 s and the
+          # restart loops (2026-11-23: three attempts after an OOMKill).
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /healthz
