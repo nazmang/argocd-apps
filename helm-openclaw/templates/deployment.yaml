@@ -42,7 +42,9 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
-              add: ["CHOWN", "FOWNER"]
+              # DAC_READ_SEARCH: since 2026.11.6 /home/node is 0700 node,
+              # root cannot even traverse it without this.
+              add: ["CHOWN", "FOWNER", "DAC_READ_SEARCH"]
             seccompProfile:
               type: RuntimeDefault
           command:
