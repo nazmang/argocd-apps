@@ -143,6 +143,11 @@ env:
     model: "openrouter/anthropic/claude-sonnet-5.5"
     thinkingLevel: "low"
     notifyUser: true
+    # 2026-11-23: the pre-compaction memory flush (memory/YYYY-MM-DD.md) never
+    # ran: it triggers near the model window or at 2mb, both far above our
+    # 250kb compaction. 200kb forces it once per compaction cycle.
+    memoryFlush:
+      forceFlushTranscriptBytes: "200kb"
   # Tool and skill catalog sent with every call (2026-11-09). Unset, the
   # agent got every core tool schema (~74 tools) and 16 bundled skills
   # (notion, debuggers, clawhub, ...) in the prompt prefix. alsoAllow lists
