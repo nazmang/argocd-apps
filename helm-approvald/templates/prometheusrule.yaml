@@ -1,7 +1,7 @@
 {{- /*
   What the baseline in monitoring.yaml cannot see: the inside of approvald.
   Metric names and label values are the image's (approvald/metrics.py,
-  approvald/README.md in bg-coast-news, 0.4.0).
+  approvald/README.md in bg-coast-news, 0.4.2).
 */}}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -75,22 +75,20 @@ spec:
           # the execution is gone (orphaned). approvald sends a Telegram alert
           # only on expiry, so this rule is the only signal for these two.
           #
-          # The second branch is not decoration. The counter has no series until
-          # its first increment and the pod label is part of the series, so the
-          # first failure after every pod start appears already at 1, and
-          # increase() over a series that starts at 1 returns 0. The branch
-          # catches a series that exists now and did not exist a day ago.
+          # approvald_drafts_lost (0.4.2+) is a gauge computed from the decision
+          # journal in the database on every scrape: cards lost in the last 24 h.
+          # A pod restart does not reset it, unlike the in-memory counter
+          # approvald_drafts_total that the old rule used (a rollout cleared the
+          # alert after 6 h instead of 24). max_over_time over 10m bridges the
+          # gap between the old and the new pod during a rollout; max by drops
+          # the pod label so two pods do not double the value.
+          # Needs image 0.4.2 with the four series in /metrics before this rule.
           expr: |
-            sum by (kind, result) (
-              increase(approvald_drafts_total{result=~"orphaned|resume_failed"}[24h]) > 0
-              or
-              (approvald_drafts_total{result=~"orphaned|resume_failed"}
-                unless approvald_drafts_total{result=~"orphaned|resume_failed"} offset 24h)
-            ) > 0
+            max by (kind, result) (max_over_time(approvald_drafts_lost[10m])) > 0
           for: 0m
           labels:
             severity: warning
             app: {{ .Release.Name }}
           annotations:
             summary: "approvald: video card {{ "{{ $labels.result }}" }} ({{ "{{ $labels.kind }}" }})"
-            description: "A card did not reach n8n in the last 24 hours. resume_failed: Retry is available in the Mini App, check n8n and APPROVALD_N8N_RESUME_BASE. orphaned: the n8n execution is gone, see reconciliation in 01e."
+            description: "{{ "{{ $value }}" }} card(s) did not reach n8n in the last 24 hours. resume_failed: Retry is available in the Mini App, check n8n and APPROVALD_N8N_RESUME_BASE. orphaned: the n8n execution is gone."
