@@ -1,0 +1,51 @@
+{{- /*
+  Те же пять путей, что в gate-ingress.yaml, через публичный Gateway kgateway: Exact,
+  остальной API снаружи недоступен. Список путей держать одинаковым в обоих файлах.
+
+  TrafficPolicy повторяет аннотации nginx. Разница: nginx считал по IP клиента, а
+  локальный лимитер Envoy — одно ведро на маршрут, общее для реплик Gateway. Клиент
+  сейчас один (скрипты на большом ПК), так что цифры значат то же самое. Тело больше
+  maxRequestSize получает 413.
+*/}}
+{{- if .Values.gateHttproute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "anamnesticClaw.fullname" . }}-gate
+  labels:
+    {{- include "anamnesticClaw.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.gateHttproute.parentRefs | nindent 4 }}
+  hostnames:
+    - {{ .Values.gateIngress.host }}
+  rules:
+    - matches:
+        {{- range list "/gate/generation" "/gate/sessions" "/gate/safe-mode" "/gate/purchases" "/gate/training" }}
+        - path:
+            type: Exact
+            value: {{ . }}
+        {{- end }}
+      backendRefs:
+        - name: {{ include "anamnesticClaw.fullname" . }}
+          port: {{ .Values.service.port }}
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: {{ include "anamnesticClaw.fullname" . }}-gate
+  labels:
+    {{- include "anamnesticClaw.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ include "anamnesticClaw.fullname" . }}-gate
+  rateLimit:
+    local:
+      shareAcrossGateway: true
+      tokenBucket:
+        {{- toYaml .Values.gateHttproute.rateLimit | nindent 8 }}
+  buffer:
+    maxRequestSize: {{ .Values.gateHttproute.maxRequestSize | quote }}
+{{- end }}

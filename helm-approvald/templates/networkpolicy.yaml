@@ -2,7 +2,8 @@
   Calico enforces NetworkPolicy in this cluster. Default deny both ways for
   approvald's pod, then exactly what the spec needs:
 
-  in   8080  from ingress-nginx only (the Mini App)
+  in   8080  from the ingress proxies only (the Mini App): ingress-nginx and
+             kgateway's Envoy
   in   8081  from n8n's main pod (/v1) and monitoring (/metrics). This port
              serves /metrics and the detailed /healthz without a token and
              listens on 0.0.0.0: this policy is what keeps it internal.
@@ -33,9 +34,11 @@ spec:
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
+        {{- range $np.ingressNamespaces }}
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ $np.ingressNamespace }}
+              kubernetes.io/metadata.name: {{ . }}
+        {{- end }}
       ports:
         - port: http
           protocol: TCP

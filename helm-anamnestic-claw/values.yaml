@@ -90,7 +90,7 @@ env:
 
 # Гейт генерации: pause.py на большом ПК спрашивает «можно ли запускать».
 # Токен GATE_TOKEN и GATE_USER_ID — в secrets.yaml. TLS — на краю Cloudflare
-# (Universal SSL: один уровень под srvx.cc), туннель ведёт *.srvx.cc на ingress-nginx.
+# (Universal SSL: один уровень под srvx.cc), туннель ведёт health-gate.srvx.cc на kgateway (gateHttproute ниже).
 gateIngress:
   enabled: true
   className: nginx
@@ -106,6 +106,20 @@ gateIngress:
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "1"
     # У GET тела нет, тело POST /gate/sessions — 4 поля, /gate/purchases — 2.
     nginx.ingress.kubernetes.io/proxy-body-size: "1k"
+
+# Маршрут kgateway для того же хоста и тех же пяти путей (templates/gate-httproute.yaml).
+# Ingress выше остаётся только ради записи external-dns; трафик идёт сюда, когда туннель
+# назовёт хост. Лимит тот же: 30/мин, пачка 30 (limit-rpm 30 × multiplier 1), тело до 1 КиБ.
+gateHttproute:
+  enabled: true
+  parentRefs:
+    - name: public
+      namespace: kgateway-system
+  rateLimit:
+    maxTokens: 30
+    tokensPerFill: 1
+    fillInterval: 2s
+  maxRequestSize: 1Ki
 
 resources:
   limits:
