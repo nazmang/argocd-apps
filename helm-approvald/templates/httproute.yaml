@@ -1,0 +1,56 @@
+{{- /*
+  The Mini App through kgateway's public Gateway; the tunnel sends the host
+  there by name (terraform, infra/cloudflare/locals.tf). The Ingress stays only
+  so that external-dns keeps the tunnel CNAME; no traffic reaches it.
+
+  The TrafficPolicy carries what the nginx annotations did:
+  - rate: 120/min with a burst of 360 (limit-rpm 120 x burst-multiplier 3).
+    nginx counted per client IP; Envoy's local limiter has one bucket for the
+    route, shared across the Gateway's replicas. Today the only client is one
+    phone, so the numbers mean the same. A flood now throttles everyone instead
+    of only the flooding address -- still cheaper than letting it reach the
+    signature check. Per-IP limits would need a global rate-limit service.
+  - body: 1 MiB (proxy-body-size 1m); larger requests get 413.
+*/}}
+{{- if .Values.httproute.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "approvald.fullname" . }}
+  labels:
+    {{- include "approvald.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    {{- toYaml .Values.httproute.parentRefs | nindent 4 }}
+  hostnames:
+    - {{ .Values.ingress.host }}
+  rules:
+    - matches:
+        {{- range .Values.ingress.paths }}
+        - path:
+            type: PathPrefix
+            value: {{ . }}
+        {{- end }}
+      backendRefs:
+        - name: {{ include "approvald.fullname" . }}-public
+          port: {{ .Values.ports.public }}
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: {{ include "approvald.fullname" . }}
+  labels:
+    {{- include "approvald.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ include "approvald.fullname" . }}
+  rateLimit:
+    local:
+      shareAcrossGateway: true
+      tokenBucket:
+        {{- toYaml .Values.httproute.rateLimit | nindent 8 }}
+  buffer:
+    maxRequestSize: {{ .Values.httproute.maxRequestSize | quote }}
+{{- end }}

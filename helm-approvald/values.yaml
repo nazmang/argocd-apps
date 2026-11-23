@@ -63,8 +63,9 @@ ingress:
   paths: [/]
   annotations:
     # TLS ends at Cloudflare's edge (Universal SSL covers *.srvx.cc, one level
-    # only -- which is why this is not approve.ktulu.srvx.cc). The tunnel's
-    # wildcard forwards to ingress-nginx; external-dns creates the record.
+    # only -- which is why this is not approve.ktulu.srvx.cc). external-dns
+    # creates the record from this Ingress; the tunnel names the host and sends
+    # it to kgateway (httproute below), so nginx no longer serves it.
     external-dns.alpha.kubernetes.io/hostname: approve.srvx.cc
     external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
@@ -80,6 +81,20 @@ ingress:
   # host: fetch() from the Telegram webview cannot solve a challenge, and the
   # Mini App would fail with no visible reason.
 
+# kgateway route for the same host and paths (templates/httproute.yaml has the
+# reasoning). Traffic moves here once the tunnel names the host.
+httproute:
+  enabled: true
+  parentRefs:
+    - name: public
+      namespace: kgateway-system
+  # 120/min, burst 360: what limit-rpm 120 x burst-multiplier 3 allowed.
+  rateLimit:
+    maxTokens: 360
+    tokensPerFill: 2
+    fillInterval: 1s
+  maxRequestSize: 1Mi
+
 networkPolicy:
   # Pods allowed to call the internal API: n8n's main process only. inboxd,
   # silerod and renderd Jobs share n8n's namespace and have no business here.
@@ -90,7 +105,8 @@ networkPolicy:
       app.kubernetes.io/name: n8n
     # approvald -> n8n: webhook (dispatch) and resume of waiting executions
     port: 5678
-  ingressNamespace: ingress-nginx
+  # The Mini App's way in: ingress-nginx until kgw-09 removes it, then kgateway only.
+  ingressNamespaces: [ingress-nginx, kgateway-system]
   monitoringNamespace: monitoring
   # tutor-postgres on dkr01
   postgres:
