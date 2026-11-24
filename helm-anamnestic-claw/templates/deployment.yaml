@@ -69,6 +69,13 @@ spec:
                   name: {{ .Values.secretName }}
                   key: HA_TOKEN
                   optional: true
+            # Справочник продуктов USDA FDC (app/food_db.py); без ключа — DEMO_KEY с малым лимитом.
+            - name: USDA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretName }}
+                  key: USDA_API_KEY
+                  optional: true
             {{- if .Values.documents.enabled }}
             - name: DOCUMENTS_S3_BUCKET
               value: {{ .Values.documents.bucket | quote }}
