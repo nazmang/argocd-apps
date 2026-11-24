@@ -23,6 +23,12 @@ spec:
       annotations:
         # envFrom is resolved at pod creation; roll the pod when a key changes.
         checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with (.Values.secrets | default dict).logAllow }}
+        # The cluster log shipper reads this pod only with both; the list of lines it keeps lives in the
+        # encrypted values file (secrets.logAllow), never here.
+        logging.homelab/ship: "true"
+        logging.homelab/allow: {{ . | quote }}
+        {{- end }}
     spec:
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
