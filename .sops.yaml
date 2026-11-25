@@ -56,10 +56,11 @@ creation_rules:
 
   # pluggio: LLM keys and the local model's LAN address, the bridge's token, Cloudflare Access settings (the
   # owner's email and the bridge's service-token id are private here, the repo
-  # is public) and the GHCR pull credential for the private image.
+  # is public), the database URL of the server and of the move Job (host, user
+  # and password in one string) and the GHCR pull credential for the private image.
   - path_regex: helm-pluggio/secrets\.yaml$
     age: "age1wp7n5rlrjdqjx7hpkfv35ejwauuggyncl0cu4zllcq59a696sudqnucqfe"
-    encrypted_regex: ^(OPENROUTER_API_KEY|GEMINI_API_KEY|NANOBANANA_API_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY|PLUGGIO_BRIDGE__TOKEN|PLUGGIO_ACCESS__TEAM|PLUGGIO_ACCESS__AUD|PLUGGIO_ACCESS__OWNERS|PLUGGIO_ACCESS__BRIDGE_CLIENT_ID|PLUGGIO_LLM__OPENAI_COMPAT__BASE_URL|PLUGGIO_LLM__OPENAI_COMPAT__MODEL|PLUGGIO_KEK|PLUGGIO_IDENTITY|PLUGGIO_GPU__TOKEN|PLUGGIO_ACCESS__GPU_CLIENT_ID|NATS_PASSWORD|logAllow|dockerconfigjson)$
+    encrypted_regex: ^(OPENROUTER_API_KEY|GEMINI_API_KEY|NANOBANANA_API_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY|PLUGGIO_BRIDGE__TOKEN|PLUGGIO_ACCESS__TEAM|PLUGGIO_ACCESS__AUD|PLUGGIO_ACCESS__OWNERS|PLUGGIO_ACCESS__BRIDGE_CLIENT_ID|PLUGGIO_LLM__OPENAI_COMPAT__BASE_URL|PLUGGIO_LLM__OPENAI_COMPAT__MODEL|PLUGGIO_KEK|PLUGGIO_IDENTITY|PLUGGIO_GPU__TOKEN|PLUGGIO_ACCESS__GPU_CLIENT_ID|PLUGGIO_DB__URL|PGMOVE_URL|NATS_PASSWORD|logAllow|dockerconfigjson)$
 
   # approvald (bg-coast-news topic approval queue). The owner's Telegram id and
   # the notify chat id are encrypted too: not credentials, but personal identifiers,
