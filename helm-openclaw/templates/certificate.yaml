@@ -1,0 +1,45 @@
+{{- /*
+Certificates for the private kgateway Gateway listeners (openclaw, openclaw-sandbox).
+Before kgw-09 cert-manager's ingress-shim created them from the Ingress, so they were
+owned by the Ingress and would be garbage-collected with it. Same names and secrets as
+before: the existing Secret is reused, nothing is reissued.
+*/}}
+{{- if .Values.ingress.tls.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.ingress.tls.secretName }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.ingress.tls.secretName }}
+  dnsNames:
+    - {{ .Values.ingress.host }}
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: letsencrypt-dns
+  usages:
+    - digital signature
+    - key encipherment
+{{- if .Values.sandboxIngress.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .Values.sandboxIngress.tlsSecretName }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  secretName: {{ .Values.sandboxIngress.tlsSecretName }}
+  dnsNames:
+    - {{ .Values.sandboxIngress.host }}
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: letsencrypt-dns
+  usages:
+    - digital signature
+    - key encipherment
+{{- end }}
+{{- end }}

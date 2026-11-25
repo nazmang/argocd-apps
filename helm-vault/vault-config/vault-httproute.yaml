@@ -3,6 +3,8 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
   name: vault
   namespace: vault
 spec:

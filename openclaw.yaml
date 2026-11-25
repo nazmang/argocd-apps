@@ -31,6 +31,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # kgw-09: the Ingresses pruned in this sync own Certificates (ingress-shim
+      # ownerReferences, which client-side apply never removes). Orphan keeps the
+      # Certificates and drops the ownerRef instead of garbage-collecting them.
+      # Remove after kgw-09.
+      - PrunePropagationPolicy=orphan
   info:
     - name: upstream
       value: "https://github.com/openclaw/openclaw"
