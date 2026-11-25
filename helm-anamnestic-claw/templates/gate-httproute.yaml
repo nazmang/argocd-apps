@@ -11,6 +11,8 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
   name: {{ include "anamnesticClaw.fullname" . }}-gate
   labels:
     {{- include "anamnesticClaw.labels" . | nindent 4 }}

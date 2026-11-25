@@ -2,6 +2,8 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
   name: {{ include "ntfy.fullname" . }}
   labels:
     {{- include "ntfy.labels" . | nindent 4 }}

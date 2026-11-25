@@ -5,5 +5,4 @@ generators:
   - ./secret-generator.yaml
 
 resources:
-  - ./httproute.yaml
   - ./private-gateway.yaml

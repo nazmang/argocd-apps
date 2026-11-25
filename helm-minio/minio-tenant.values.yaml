@@ -624,6 +624,8 @@ extraResources:
     kind: HTTPRoute
     metadata:
       name: minio-bg-coast-public
+      annotations:
+        external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
       namespace: minio-operator
     spec:
       parentRefs:
@@ -654,6 +656,43 @@ extraResources:
           name: minio
       tls:
         insecureSkipVerify: true
+  # Self-signed certificates of the private Gateway listeners below. Until kgw-09
+  # ingress-shim created them from the Ingresses (owned by them, so they would be
+  # garbage-collected with them). Same names and secrets: nothing is reissued.
+  - |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: minio-api-tls
+      namespace: minio-operator
+    spec:
+      secretName: minio-api-tls
+      dnsNames:
+        - minio.comintern.local
+      issuerRef:
+        group: cert-manager.io
+        kind: ClusterIssuer
+        name: selfsigned-issuer
+      usages:
+        - digital signature
+        - key encipherment
+  - |
+    apiVersion: cert-manager.io/v1
+    kind: Certificate
+    metadata:
+      name: minio-console-tls
+      namespace: minio-operator
+    spec:
+      secretName: minio-console-tls
+      dnsNames:
+        - minio-console.comintern.local
+      issuerRef:
+        group: cert-manager.io
+        kind: ClusterIssuer
+        name: selfsigned-issuer
+      usages:
+        - digital signature
+        - key encipherment
   # minio.comintern.local and minio-console.comintern.local on the private
   # kgateway Gateway (own MetalLB address, internal network and VPN only).
   # TLS ends on the Gateway with the same self-signed secrets the Ingresses
