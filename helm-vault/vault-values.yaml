@@ -127,7 +127,8 @@ server:
       readOnly: true # Mark as read-only to prevent accidental modifications.
 
   ingress:
-    enabled: true # Enable ingress to access Vault from outside the cluster.
+    # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+    enabled: false # Enable ingress to access Vault from outside the cluster.
     annotations:
       kubernetes.io/ingress.class: nginx # Use NGINX ingress controller.
       nginx.ingress.kubernetes.io/backend-protocol: "HTTP" # Tell NGINX to use HTTPS when connecting to Vault.

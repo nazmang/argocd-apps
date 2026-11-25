@@ -271,7 +271,8 @@ affinity: {}
 tolerations: []
 
 ingress:
-  enabled: true
+  # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+  enabled: false
   className: nginx
   host: openclaw.srvx.cc
   annotations:
@@ -300,7 +301,8 @@ ingress:
 # Свой адрес MetalLB для OpenClaw (templates/private-lb.yaml): второй Service на поды
 # ingress-nginx с externalTrafficPolicy: Local. Голос — соседи 10.164.12.60–62.
 privateLb:
-  enabled: true
+  # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+  enabled: false
   ip: 10.164.12.63
   ingressNamespace: ingress-nginx
   ingressSelector:

@@ -27,7 +27,8 @@ spec:
           service:
             type: ClusterIP
           ingress:
-            enabled: true
+            # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+            enabled: false
             className: nginx
             hosts:
               - host: trivy-dashboard.comintern.local

@@ -189,7 +189,8 @@ monitoring:
       slowResponseSeconds: 5
 
 ingress:
-  enabled: true
+  # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+  enabled: false
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"

@@ -75,8 +75,8 @@ service:
     # -- Additional labels for the service
     labels: {}
 ingress:
-    # -- Enable ingress
-    enabled: true
+    # -- Enable ingress (off since kgw-09: ingress-nginx is removed)
+    enabled: false
     # -- (string) Class name for the ingress resource
     className: nginx
     # -- Host definition for ingress

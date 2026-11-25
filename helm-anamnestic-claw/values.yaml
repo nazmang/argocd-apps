@@ -92,7 +92,8 @@ env:
 # Токен GATE_TOKEN и GATE_USER_ID — в secrets.yaml. TLS — на краю Cloudflare
 # (Universal SSL: один уровень под srvx.cc), туннель ведёт health-gate.srvx.cc на kgateway (gateHttproute ниже).
 gateIngress:
-  enabled: true
+  # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+  enabled: false
   className: nginx
   host: health-gate.srvx.cc
   annotations:

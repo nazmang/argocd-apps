@@ -522,7 +522,8 @@ tenant:
 # Set the keys to conform to the Ingress controller and configuration of your choice.
 ingress:
   api:
-    enabled: true
+    # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+    enabled: false
     ingressClassName: "nginx"
     labels: {}
     annotations:
@@ -546,7 +547,8 @@ ingress:
     pathType: Prefix
 
   console:
-    enabled: true
+    # Off since kgw-09: ingress-nginx is removed; the HTTPRoute carries DNS and traffic.
+    enabled: false
     ingressClassName: "nginx"
     labels: {}
     annotations:
@@ -582,43 +584,13 @@ ingress:
 # render (in-cluster, but by the public URL n8n hands it), and the Telegram
 # previews the operator taps on. Anonymous access is GetObject only (bucket
 # policy, live in MinIO, not in this file). Routed through the same Cloudflare Tunnel as every other *.srvx.cc app (external-dns
-# creates the DNS record, the tunnel's existing wildcard forwards to nginx-ingress,
-# nginx routes by Host header) - no changes needed in the k8s/helm-cloudflared repo.
+# creates the DNS record from the HTTPRoute, the tunnel's wildcard forwards to
+# kgateway, kgateway routes by Host header) - no changes needed in the tunnel.
 extraResources:
-  - |
-    apiVersion: networking.k8s.io/v1
-    kind: Ingress
-    metadata:
-      name: minio-bg-coast-public
-      namespace: minio-operator
-      annotations:
-        nginx.ingress.kubernetes.io/ssl-redirect: "false"
-        nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
-        # Same body-size lift as the API ingress above, for the same upload.
-        # Anonymous access here is GetObject only (bucket policy), so a PUT
-        # still needs MinIO credentials; this changes what nginx lets through,
-        # not who may write. Cloudflare in front caps uploads at 100 MB anyway.
-        nginx.ingress.kubernetes.io/proxy-body-size: "0"
-        nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
-        external-dns.alpha.kubernetes.io/hostname: bg-coast-assets.srvx.cc
-        external-dns.alpha.kubernetes.io/target: b16e4df1-2f22-4512-a7bc-29b1ed11d754.cfargotunnel.com
-        external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
-    spec:
-      ingressClassName: nginx
-      rules:
-        - host: bg-coast-assets.srvx.cc
-          http:
-            paths:
-              - path: /
-                pathType: Prefix
-                backend:
-                  service:
-                    name: minio
-                    port:
-                      number: 443
-  # The same host through kgateway (Gateway public in kgateway-system). The
-  # Ingress above stays until external-dns reads HTTPRoutes. Envoy streams
-  # bodies with no size cap, as proxy-body-size 0 and buffering off do above.
+  # bg-coast-assets.srvx.cc through kgateway (Gateway public in kgateway-system).
+  # external-dns publishes the tunnel CNAME from this route; the Ingress on
+  # ingress-nginx is gone (kgw-09). Envoy streams bodies with no size cap.
+  # Anonymous access is GetObject only (bucket policy); Cloudflare caps uploads at 100 MB.
   - |
     apiVersion: gateway.networking.k8s.io/v1
     kind: HTTPRoute

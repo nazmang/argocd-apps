@@ -105,8 +105,8 @@ networkPolicy:
       app.kubernetes.io/name: n8n
     # approvald -> n8n: webhook (dispatch) and resume of waiting executions
     port: 5678
-  # The Mini App's way in: ingress-nginx until kgw-09 removes it, then kgateway only.
-  ingressNamespaces: [ingress-nginx, kgateway-system]
+  # The Mini App's way in: kgateway only (ingress-nginx removed in kgw-09).
+  ingressNamespaces: [kgateway-system]
   monitoringNamespace: monitoring
   # tutor-postgres on dkr01
   postgres:
