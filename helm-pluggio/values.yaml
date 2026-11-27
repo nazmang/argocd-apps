@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/nazmang/pluggio
-  tag: "041ab00"
+  tag: "efc33ca"
   pullPolicy: IfNotPresent
 
 service:
@@ -25,6 +25,9 @@ env:
   PLUGGIO_LLM__PROVIDER: openai_compat
   PLUGGIO_SERVER__LEASE: "true"   # a new pod waits for the old one to hand the girls over
   PLUGGIO_SERVER__CSP_ENFORCE: "true"   # CSP blocks, not only reports: no violations in report-only
+  PLUGGIO_CRYPT__V2: "0"          # off
+  PLUGGIO_CRYPT__OWNER: me
+  PLUGGIO_CRYPT__TTL_DAYS: "10"
   # The local model's address and name are in secrets.yaml: a LAN host on the
   # home network. When it is off, chats set to the cloud providers keep working.
 
